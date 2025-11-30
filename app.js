@@ -418,7 +418,7 @@ function ejecutarAnalisis() {
             mostrarMarcoMetodologico(marco);
             mostrarPruebasNormalidad(var1, var2, resultado);
             mostrarCorrelacion(var1, var2, resultado);
-            mostrarDecision(resultado);
+            mostrarDecision(var1, var2, resultado);
             mostrarDiscusion(var1, var2, resultado);
 
             // Mostrar referencias bibliográficas
@@ -532,7 +532,20 @@ function mostrarPruebasNormalidad(var1, var2, resultado) {
                     </tr>
                 </table>
             </div>
+            <!-- Interpretación de Normalidad -->
+            <div class="result-box interpretation-box" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #3b82f6; padding: 1.5rem; margin-top: 1rem;">
+                <h5 style="margin-bottom: 0.75rem; color: #1e40af; font-weight: 600; display: flex; align-items: center;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="margin-right: 0.5rem;">
+                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/>
+                    </svg>
+                    Interpretación Estadística
+                </h5>
+                <p style="margin: 0; line-height: 1.8; text-align: justify; color: #1e293b;">
+                    ${InterpretacionesEstadisticas.generarInterpretacionNormalidad(var1, var2, resultado)}
+                </p>
+            </div>
         </div>
+        
     `;
 
     container.innerHTML = html;
@@ -565,8 +578,8 @@ function mostrarCorrelacion(var1, var2, resultado) {
                     <tr>
                         <td>Razón:</td>
                         <td>${resultado.normalidad1.normal && resultado.normalidad2.normal ?
-            'Ambas variables son normales' :
-            'Al menos una variable no es normal'}</td>
+            'Ambas variables siguen una distribución normal' :
+            'Al menos una variable no sigue una distribución normal'}</td>
                     </tr>
                     <tr>
                         <td>Coeficiente (${resultado.tipoCorrelacion === 'Pearson' ? 'r' : 'ρ'}):</td>
@@ -582,14 +595,27 @@ function mostrarCorrelacion(var1, var2, resultado) {
                     </tr>
                 </table>
             </div>
+            <!-- Interpretación de Correlación -->
+            <div class="result-box interpretation-box" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #22c55e; padding: 1.5rem; margin-top: 1rem;">
+                <h5 style="margin-bottom: 0.75rem; color: #15803d; font-weight: 600; display: flex; align-items: center;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="margin-right: 0.5rem;">
+                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/>
+                    </svg>
+                    Interpretación Estadística
+                </h5>
+                <p style="margin: 0; line-height: 1.8; text-align: justify; color: #1e293b;">
+                    ${InterpretacionesEstadisticas.generarInterpretacionCorrelacion(var1, var2, resultado)}
+                </p>
+            </div>
         </div>
+        
     `;
 
     container.innerHTML = html;
     container.style.display = 'block';
 }
 
-function mostrarDecision(resultado) {
+function mostrarDecision(var1, var2, resultado) {
     const container = document.getElementById('resultadosDecision');
     if (!container) return;
 
@@ -631,7 +657,20 @@ function mostrarDecision(resultado) {
                     </p>
                 </div>
             </div>
+            <!-- Interpretación de Prueba de Hipótesis -->
+            <div class="result-box interpretation-box" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 1.5rem; margin-top: 1rem;">
+                <h5 style="margin-bottom: 0.75rem; color: #b45309; font-weight: 600; display: flex; align-items: center;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="margin-right: 0.5rem;">
+                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/>
+                    </svg>
+                    Interpretación Estadística
+                </h5>
+                <p style="margin: 0; line-height: 1.8; text-align: justify; color: #1e293b;">
+                    ${InterpretacionesEstadisticas.generarInterpretacionHipotesis(var1, var2, resultado, prueba)}
+                </p>
+            </div>
         </div>
+        
     `;
 
     container.innerHTML = html;
@@ -679,6 +718,10 @@ function mostrarReferencias(var1, var2, resultado) {
             <div class="reference-card">
                 <p class="reference-text">3. Taherdoost, H. (2022). What are different research approaches? Comprehensive review of qualitative, quantitative, and mixed method research, their applications, types, and limitations. Journal of Management Science & Engineering Research, 5(1), 53-63. <a href="https://hal.science/hal-03741840/document" target="_blank">https://hal.science/hal-03741840/document</a></p>
             </div>
+
+            <div class="reference-card">
+                <p class="reference-text">4. Cohen, J. (2013). Statistical power analysis for the behavioral sciences. routledge. <a href="https://www.taylorfrancis.com/books/mono/10.4324/9780203771587/statistical-power-analysis-behavioral-sciences-jacob-cohen" target="_blank">https://www.taylorfrancis.com/books/mono/10.4324/9780203771587/statistical-power-analysis-behavioral-sciences-jacob-cohen</a></p>
+            </div>
         </div>
     `;
 
@@ -709,7 +752,6 @@ ${decision}
 4. DISCUSIÓN (PLANTILLA)
 ${discusion}
 
-
 ----
 Generado por StatSim Pro
 Fecha: ${new Date().toLocaleDateString()}
@@ -730,7 +772,7 @@ Fecha: ${new Date().toLocaleDateString()}
 
     mostrarToast('Resultados descargados', 'success');
 }
-// autor: Joel pasapera
+
 // ========================================
 // UTILIDADES
 // ========================================
