@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StatSim Pro - Simulador y Analizador Estadístico</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-group">
+                    <h1 class="logo">StatSim<span class="accent">Pro</span></h1>
+                    <span class="author-signature">por Joel Pasapera</span>
+                </div>
+                <nav class="nav">
+                    <a href="#simulador" class="nav-link active">Simulador</a>
+                    <a href="#analizador" class="nav-link">Analizador</a>
+                    <a href="#ayuda" class="nav-link">Ayuda</a>
+                    <a href="#contacto" class="nav-link">Contacto</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main">
+        <!-- Sección Simulador -->
+        <section id="simulador" class="section active">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title">Generador de Base de Datos</h2>
+                    <p class="section-subtitle">Simula datos estadísticos controlados para tu investigación</p>
+                </div>
+
+                <!-- Configuración General -->
+                <div class="card">
+                    <h3 class="card-title">Configuración General</h3>
+                    <div class="form-group">
+                        <label for="tamanoMuestra">Tamaño Muestral (N)</label>
+                        <input type="number" id="tamanoMuestra" class="input" min="2" value="100" placeholder="Ej: 100">
+                        <span class="help-text">Número de participantes/unidades de análisis</span>
+                    </div>
+                </div>
+
+                <!-- Tabla I: Pruebas Aplicadas -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">I. Pruebas Aplicadas</h3>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="btnImportarPruebas" class="btn btn-outline"
+                                title="Importar configuración desde CSV">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 12V3M8 3L5 6M8 3L11 6M3 13H13" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Importar CSV
+                            </button>
+                            <button id="btnExportarPruebas" class="btn btn-outline"
+                                title="Exportar configuración a CSV">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 3V12M8 12L5 9M8 12L11 9M3 13H13" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Exportar CSV
+                            </button>
+                            <button id="btnAgregarPrueba" class="btn btn-secondary">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" />
+                                </svg>
+                                Agregar Prueba
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="table" id="tablaPruebas">
+                            <thead>
+                                <tr>
+                                    <th>Nombre de la Prueba</th>
+                                    <th>N° de Ítems</th>
+                                    <th>Media (M)</th>
+                                    <th>Desviación Estándar (DE)</th>
+                                    <th>Mín por Ítem</th>
+                                    <th>Máx por Ítem</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyPruebas">
+                                <!-- Fila inicial -->
+                                <tr class="fila-prueba">
+                                    <td>
+                                        <input type="text" class="input input-sm" placeholder="Ej: WAIS-IV"
+                                            maxlength="100">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 60" min="1">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 100" step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 15" step="0.01"
+                                            min="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 0" step="1">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 5" step="1">
+                                    </td>
+                                    <td>
+                                        <button class="btn-icon btn-delete" title="Eliminar">
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                                <path
+                                                    d="M3 4H13M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M6 7V11M10 7V11M4 4H12L11.5 13C11.5 13.5523 11.0523 14 10.5 14H5.5C4.94772 14 4.5 13.5523 4.5 13L4 4Z"
+                                                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="help-text" style="margin-top: 0.5rem;">
+                        <strong>Mín/Máx por Ítem:</strong> Define el rango de valores posibles para cada ítem individual
+                        (Ej: escala Likert 0-5, 1-7, etc.). Si se deja vacío, se estimará automáticamente.
+                    </p>
+                </div>
+
+                <!-- Tabla II: Datos Sociodemográficos -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">II. Datos Sociodemográficos</h3>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="btnImportarSocio" class="btn btn-outline"
+                                title="Importar configuración desde CSV">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 12V3M8 3L5 6M8 3L11 6M3 13H13" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Importar CSV
+                            </button>
+                            <button id="btnExportarSocio" class="btn btn-outline" title="Exportar configuración a CSV">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 3V12M8 12L5 9M8 12L11 9M3 13H13" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Exportar CSV
+                            </button>
+                            <button id="btnAgregarSocio" class="btn btn-secondary">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" />
+                                </svg>
+                                Agregar Variable
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="table" id="tablaSocio">
+                            <thead>
+                                <tr>
+                                    <th>Categoría</th>
+                                    <th>Promedio</th>
+                                    <th>Desviación Estándar</th>
+                                    <th>Mínimo</th>
+                                    <th>Máximo</th>
+                                    <th>N° Decimales</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodySocio">
+                                <!-- Fila inicial -->
+                                <tr class="fila-socio">
+                                    <td>
+                                        <input type="text" class="input input-sm" placeholder="Ej: Edad">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 20" step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 2.5" step="0.01"
+                                            min="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 15" step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 25" step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 2" min="0" max="4"
+                                            value="2">
+                                    </td>
+                                    <td>
+                                        <button class="btn-icon btn-delete" title="Eliminar">
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                                <path
+                                                    d="M3 4H13M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M6 7V11M10 7V11M4 4H12L11.5 13C11.5 13.5523 11.0523 14 10.5 14H5.5C4.94772 14 4.5 13.5523 4.5 13L4 4Z"
+                                                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="help-text" style="margin-top: 0.5rem;">
+                        <strong>Mín/Máx:</strong> Rango de valores posibles. <strong>Decimales:</strong> Precisión del
+                        valor (0-4 decimales). Si se deja vacío Mín/Máx, no se aplicarán límites.
+                    </p>
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="actions-bar">
+                    <button id="btnGenerar" class="btn btn-primary btn-lg">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M10 3V17M10 17L6 13M10 17L14 13" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Generar Base de Datos
+                    </button>
+                    <button id="btnDescargarCSV" class="btn btn-outline" disabled>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path
+                                d="M3 13L3 14C3 15.6569 4.34315 17 6 17L14 17C15.6569 17 17 15.6569 17 14L17 13M10 3L10 13M10 13L7 10M10 13L13 10"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Descargar CSV
+                    </button>
+                </div>
+
+                <!-- Preview de Datos Generados -->
+                <div id="previewContainer" class="card" style="display: none;">
+                    <h3 class="card-title">Vista Previa de Datos Generados</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-label">Participantes</span>
+                            <span class="stat-value" id="statParticipantes">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Variables</span>
+                            <span class="stat-value" id="statVariables">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Pruebas</span>
+                            <span class="stat-value" id="statPruebas">0</span>
+                        </div>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="table table-preview" id="tablaPreview">
+                            <thead id="previewHead"></thead>
+                            <tbody id="previewBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección Analizador -->
+        <section id="analizador" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title">Analizador Estadístico</h2>
+                    <p class="section-subtitle">Análisis de normalidad y correlación al estilo SPSS</p>
+                </div>
+
+                <!-- Cargar Datos -->
+                <div class="card">
+                    <h3 class="card-title">Cargar Datos</h3>
+                    <div class="upload-area">
+                        <div class="upload-options">
+                            <button id="btnUsarGenerados" class="btn btn-outline" disabled>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path
+                                        d="M9 3H6C4.89543 3 4 3.89543 4 5V15C4 16.1046 4.89543 17 6 17H14C15.1046 17 16 16.1046 16 15V8M9 3L16 10M9 3V8C9 9.10457 9.89543 10 11 10H16"
+                                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                                Usar Datos Generados
+                            </button>
+                            <span class="divider-text">o</span>
+                            <label for="fileInput" class="btn btn-primary">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path
+                                        d="M10 13V3M10 3L7 6M10 3L13 6M3 13V14C3 15.6569 4.34315 17 6 17H14C15.6569 17 17 15.6569 17 14V13"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                                Subir Archivo CSV
+                            </label>
+                            <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Configuración de Investigación -->
+                <div class="card">
+                    <h3 class="card-title">1. Configuración de la Investigación</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="unidadAnalisis">Unidad de Análisis</label>
+                            <input type="text" id="unidadAnalisis" class="input"
+                                placeholder="Ej: adolescentes, estudiantes, adultos">
+                            <span class="help-text">Población o grupo de estudio</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="lugarContexto">Lugar/Contexto</label>
+                            <input type="text" id="lugarContexto" class="input"
+                                placeholder="Ej: Lima Metropolitana, Región Cusco">
+                            <span class="help-text">Ubicación geográfica o contexto del estudio</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Configuración de Dimensiones -->
+                <div class="card">
+                    <h3 class="card-title">2. Configuración de Dimensiones (Opcional)</h3>
+                    <p class="help-text" style="margin-bottom: 1rem;">
+                        <strong>Formato:</strong>
+                        <code>NombreDimensión:Item1,Item2,Item3;OtraDimensión:Item4,Item5</code><br>
+                        <strong>Ejemplo:</strong> <code>Atención:W1,W2,W3;Memoria:W4,W5,W6</code>
+                    </p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="dimensionesVar1">Dimensiones Variable 1</label>
+                            <input type="text" id="dimensionesVar1" class="input"
+                                placeholder="Ej: Dim1:Item1,Item2;Dim2:Item3,Item4">
+                        </div>
+                        <div class="form-group">
+                            <label for="dimensionesVar2">Dimensiones Variable 2</label>
+                            <input type="text" id="dimensionesVar2" class="input"
+                                placeholder="Ej: Dim1:Item1,Item2;Dim2:Item3,Item4">
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Datos Cargados -->
+                <div id="datosContainer" class="card" style="display: none;">
+                    <h3 class="card-title">Datos Cargados</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-label">N</span>
+                            <span class="stat-value" id="analisisN">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Variables</span>
+                            <span class="stat-value" id="analisisVars">0</span>
+                        </div>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="table table-preview" id="tablaDatosAnalisis">
+                            <thead id="analisisHead"></thead>
+                            <tbody id="analisisBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Selección de Variables -->
+                <div id="seleccionContainer" class="card" style="display: none;">
+                    <h3 class="card-title">Análisis de Correlación</h3>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="variable1">Variable 1</label>
+                            <select id="variable1" class="input">
+                                <option value="">Seleccionar variable...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="variable2">Variable 2</label>
+                            <select id="variable2" class="input">
+                                <option value="">Seleccionar variable...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Prueba</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="tipoPrueba" value="bilateral" checked>
+                                <span>Bilateral (2 colas)</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="tipoPrueba" value="unilateral">
+                                <span>Unilateral (1 cola)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button id="btnAnalizar" class="btn btn-primary btn-lg">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="2" />
+                            <path d="M12 12L17 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                        Ejecutar Análisis
+                    </button>
+                </div>
+
+                <!-- Contenedores vacíos - el JS llenará todo -->
+
+                <!-- Marco Metodológico -->
+                <div id="marcoMetodologicoContainer" style="display: none;"></div>
+
+                <!-- Pruebas de normalidad -->
+                <div id="pruebasNormalidadContainer" style="display: none;"></div>
+
+                <!-- Resultados de análisis -->
+                <div id="resultadosCorrelacion" style="display: none;"></div>
+                <div id="resultadosDecision" style="display: none;"></div>
+                <div id="resultadosDiscusion" style="display: none;"></div>
+
+                <!-- Botón Descargar Resultados -->
+                <button id="btnDescargarResultados" class="btn btn-outline">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path
+                            d="M3 13L3 14C3 15.6569 4.34315 17 6 17L14 17C15.6569 17 17 15.6569 17 14L17 13M10 3L10 13M10 13L7 10M10 13L13 10"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Descargar Resultados
+                </button>
+
+                <!-- Sección de referencias bibliográficas: citar a sampieri por ejemplo  -->
+                <div id="resultadosContainer" class="card" style="display: none;">
+                    <h3 class="card-title">Referencias bibliográficas</h3>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección Ayuda -->
+        <section id="ayuda" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title">Ayuda y Documentación</h2>
+                    <p class="section-subtitle">Guía de uso de StatSim Pro</p>
+                </div>
+
+                <div class="help-grid">
+                    <div class="help-card">
+                        <h3>Simulador de Datos</h3>
+                        <p>Genera bases de datos estadísticos controlados siguiendo parámetros de media y desviación
+                            estándar.</p>
+                    </div>
+                    <div class="help-card">
+                        <h3>Análisis Estadístico</h3>
+                        <p>Realiza pruebas de normalidad y correlación automáticamente siguiendo las reglas estadísticas
+                            apropiadas.</p>
+                    </div>
+                    <div class="help-card">
+                        <h3>Exportación</h3>
+                        <p>Descarga tus datos en formato CSV y resultados en formato de texto para usar en tu
+                            investigación.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Sección Contacto -->
+    <section id="contacto" class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Contacto y Redes Sociales</h2>
+                <p class="section-subtitle">Conéctate conmigo y sigue mi trabajo</p>
+            </div>
+
+            <div class="contact-grid">
+
+                <a href="https://www.facebook.com/joel.pasaperapinto.1" target="_blank" class="contact-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="icon">
+                        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                    </svg>
+                    <h3>Facebook</h3>
+                    <p>Sígueme para novedades y artículos.</p>
+                </a>
+
+                <a href="https://www.instagram.com/joel.pasapera/" target="_blank" class="contact-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="icon">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                    </svg>
+                    <h3>Instagram</h3>
+                    <p>Contenido diario y un vistazo a mi vida profesional.</p>
+                </a>
+
+                <a href="https://www.youtube.com/@JoelPasapera" target="_blank" class="contact-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="icon">
+                        <path
+                            d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2A54.48 54.48 0 0 0 12 5a54.48 54.48 0 0 0-8.6.42 2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 2 12a29 29 0 0 0 .5 5.58 2.78 2.78 0 0 0 1.94 2 54.48 54.48 0 0 0 8.6.42 54.48 54.48 0 0 0 8.6-.42 2.78 2.78 0 0 0 1.94-2A29 29 0 0 0 22 12a29 29 0 0 0-.46-5.58z">
+                        </path>
+                        <polygon points="10 15 15 12 10 9 10 15"></polygon>
+                    </svg>
+                    <h3>YouTube</h3>
+                    <p>Tutoriales de programación y análisis de datos en video.</p>
+                </a>
+
+                <a href="https://github.com/JoelPasapera" target="_blank" class="contact-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="icon">
+                        <path
+                            d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 3 5.07 5.07 0 0 0 18 3.5c-1.8 0-3.37 1.25-4.13 3.19A10.86 10.86 0 0 0 12 7c-4.37 0-6.15-2.23-7-3.19A5.07 5.07 0 0 0 3 3.5c-.77 0-1.55.51-1.74 1.27A5.44 5.44 0 0 0 2 10c0 4.41 3.3 5.61 6.44 7a3.37 3.37 0 0 0-.94 2.61V22">
+                        </path>
+                    </svg>
+                    <h3>GitHub</h3>
+                    <p>Revisa mis proyectos y contribuciones de código abierto.</p>
+                </a>
+
+                <a href="https://www.tiktok.com/@joelpasapera101" target="_blank" class="contact-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="icon">
+                        <path d="M21 21h-3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1z"></path>
+                        <path d="M10 21h-3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1z"></path>
+                        <path d="M15 13H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1z"></path>
+                        <path
+                            d="M12 21v-4a1 1 0 0 0-1-1H7a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1z">
+                        </path>
+                    </svg>
+                    <h3>TikTok</h3>
+                    <p>Tips rápidos de tecnología y ciencia de datos.</p>
+                </a>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 StatSim Pro. Herramienta para simulación y análisis estadístico.</p>
+        </div>
+    </footer>
+
+    <!-- Toast para notificaciones -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Inputs ocultos para importar CSV -->
+    <input type="file" id="importPruebasInput" accept=".csv" style="display: none;">
+    <input type="file" id="importSocioInput" accept=".csv" style="display: none;">
+
+    <!-- Scripts generador de datos -->
+    <script src="generador-datos.js"></script>
+
+    <!-- Cargar analizador principal -->
+    <script src="analizador-estadistico.js"></script>
+
+    <!-- Código de app.js -->
+    <script src="app.js"></script>
+</body>
+
+</html>
