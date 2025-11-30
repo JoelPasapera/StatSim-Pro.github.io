@@ -248,6 +248,7 @@ class GeneradorDatos {
         return valor; // NO redondear aquí, se redondeará después según el contexto
     }
 
+    // autor: Joel pasapera
     // ========================================
     // EXPORTACIÓN A CSV
     // ========================================
