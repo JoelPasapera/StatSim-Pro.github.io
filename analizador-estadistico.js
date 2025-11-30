@@ -164,7 +164,7 @@ class AnalizadorEstadisticoProfesional {
 
         return `¿Cuál es la relación entre ${var1} y ${var2} en ${unidadAnalisis} de ${lugarContexto}?`;
     }
-    // autor: joel pasapera
+
     /**
      * Genera objetivo general
      */
