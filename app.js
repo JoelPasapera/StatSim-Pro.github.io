@@ -709,6 +709,7 @@ ${decision}
 4. DISCUSIÓN (PLANTILLA)
 ${discusion}
 
+
 ----
 Generado por StatSim Pro
 Fecha: ${new Date().toLocaleDateString()}
@@ -729,7 +730,7 @@ Fecha: ${new Date().toLocaleDateString()}
 
     mostrarToast('Resultados descargados', 'success');
 }
-
+// autor: Joel pasapera
 // ========================================
 // UTILIDADES
 // ========================================
