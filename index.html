@@ -9,7 +9,9 @@
     <style>
         .chart-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            /* min(450px, 100%) permite que las columnas encojan por debajo de
+               450px en pantallas estrechas en lugar de desbordar. */
+            grid-template-columns: repeat(auto-fit, minmax(min(450px, 100%), 1fr));
             gap: 20px;
             margin-top: 20px;
         }
@@ -45,6 +47,13 @@
         /* Mostrar gráficos cuando hay datos */
         .chart-grid.show {
             display: grid;
+        }
+
+        /* Los gráficos SVG tienen tamaño fijo; en pantallas estrechas se
+           escalan proporcionalmente para no desbordar su contenedor. */
+        #contenedorGraficos svg {
+            max-width: 100%;
+            height: auto;
         }
     </style>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">

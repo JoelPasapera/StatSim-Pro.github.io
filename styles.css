@@ -418,6 +418,9 @@ label {
 .table-scroll {
     max-height: 400px;
     overflow-y: auto;
+    /* Permite desplazamiento horizontal dentro del contenedor en lugar de
+       empujar el ancho de la página cuando la tabla tiene muchas columnas. */
+    overflow-x: auto;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
 }
@@ -554,6 +557,20 @@ label {
     font-size: 0.9375rem;
 }
 
+/* Las referencias incluyen URLs muy largas; se permite que corten para que
+   no desborden el ancho de la página en pantallas estrechas. */
+.reference-text {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Los fragmentos de código de ejemplo (p. ej. el formato de dimensiones)
+   pueden ser largos; se permite que corten para no desbordar en móviles. */
+code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
 .highlight {
     background-color: #fff9e6;
     padding: 0.125rem 0.25rem;
@@ -661,8 +678,15 @@ label {
         grid-template-columns: 1fr;
     }
 
+    .header-content {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
     .nav {
         gap: var(--spacing-md);
+        flex-wrap: wrap;
+        justify-content: center;
     }
 
     .nav-link {
