@@ -181,35 +181,11 @@ function mostrarPreview(datos) {
     document.getElementById('statPruebas').textContent = config.pruebas.length;
 
     // Crear tabla preview (solo primeras 10 filas)
-    const thead = document.getElementById('previewHead');
-    const tbody = document.getElementById('previewBody');
-
-    // Limpiar
-    thead.innerHTML = '';
-    tbody.innerHTML = '';
-
-    // Encabezados
-    const columnas = Object.keys(datos[0]);
-    const filaEncabezados = document.createElement('tr');
-    columnas.forEach(col => {
-        const th = document.createElement('th');
-        th.textContent = col;
-        filaEncabezados.appendChild(th);
-    });
-    thead.appendChild(filaEncabezados);
-
-    // Datos (máximo 10 filas)
-    const maxFilas = Math.min(10, datos.length);
-    for (let i = 0; i < maxFilas; i++) {
-        const fila = document.createElement('tr');
-        columnas.forEach(col => {
-            const td = document.createElement('td');
-            const valor = datos[i][col];
-            td.textContent = typeof valor === 'number' ? valor.toFixed(2) : valor;
-            fila.appendChild(td);
-        });
-        tbody.appendChild(fila);
-    }
+    renderizarTablaDatos(
+        document.getElementById('previewHead'),
+        document.getElementById('previewBody'),
+        datos
+    );
 
     // Mostrar container
     container.style.display = 'block';
@@ -323,35 +299,11 @@ function mostrarDatosCargados(datos) {
     document.getElementById('analisisVars').textContent = Object.keys(datos[0]).length;
 
     // Crear tabla (primeras 10 filas)
-    const thead = document.getElementById('analisisHead');
-    const tbody = document.getElementById('analisisBody');
-
-    thead.innerHTML = '';
-    tbody.innerHTML = '';
-
-    const columnas = Object.keys(datos[0]);
-
-    // Encabezados
-    const filaEncabezados = document.createElement('tr');
-    columnas.forEach(col => {
-        const th = document.createElement('th');
-        th.textContent = col;
-        filaEncabezados.appendChild(th);
-    });
-    thead.appendChild(filaEncabezados);
-
-    // Datos
-    const maxFilas = Math.min(10, datos.length);
-    for (let i = 0; i < maxFilas; i++) {
-        const fila = document.createElement('tr');
-        columnas.forEach(col => {
-            const td = document.createElement('td');
-            const valor = datos[i][col];
-            td.textContent = typeof valor === 'number' ? valor.toFixed(2) : valor;
-            fila.appendChild(td);
-        });
-        tbody.appendChild(fila);
-    }
+    const columnas = renderizarTablaDatos(
+        document.getElementById('analisisHead'),
+        document.getElementById('analisisBody'),
+        datos
+    );
 
     // Poblar selectores de variables (solo columnas numéricas)
     const columnasNumericas = columnas.filter(col => {
@@ -792,6 +744,37 @@ Fecha: ${new Date().toLocaleDateString()}
 // ========================================
 // UTILIDADES
 // ========================================
+
+// Renderiza encabezados y las primeras `maxFilas` filas de una base de datos
+// en una tabla (thead/tbody). Devuelve la lista de columnas.
+function renderizarTablaDatos(thead, tbody, datos, maxFilas = 10) {
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    const columnas = Object.keys(datos[0]);
+
+    const filaEncabezados = document.createElement('tr');
+    columnas.forEach(col => {
+        const th = document.createElement('th');
+        th.textContent = col;
+        filaEncabezados.appendChild(th);
+    });
+    thead.appendChild(filaEncabezados);
+
+    const limite = Math.min(maxFilas, datos.length);
+    for (let i = 0; i < limite; i++) {
+        const fila = document.createElement('tr');
+        columnas.forEach(col => {
+            const td = document.createElement('td');
+            const valor = datos[i][col];
+            td.textContent = typeof valor === 'number' ? valor.toFixed(2) : valor;
+            fila.appendChild(td);
+        });
+        tbody.appendChild(fila);
+    }
+
+    return columnas;
+}
 
 function mostrarToast(mensaje, tipo = 'success') {
     const toast = document.getElementById('toast');
