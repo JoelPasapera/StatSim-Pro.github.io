@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Generador de Datos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background: #007bff;
+            color: white;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #28a745;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de Generación de Datos</h1>
+    
+    <div class="test-section">
+        <h2>Configuración de Prueba</h2>
+        <p>Simulando los parámetros de tu imagen:</p>
+        <ul>
+            <li><strong>Prueba:</strong> WAIS-IV</li>
+            <li><strong>N° Ítems:</strong> 30</li>
+            <li><strong>Media:</strong> 5</li>
+            <li><strong>DE:</strong> 2</li>
+            <li><strong>Rango por ítem:</strong> 0-5</li>
+            <li><strong>Tamaño muestral:</strong> 10 (para prueba visual)</li>
+        </ul>
+        <button onclick="ejecutarPrueba()">🚀 Generar Datos de Prueba</button>
+    </div>
+
+    <div id="resultados" style="display:none;">
+        <div class="test-section">
+            <h2>📊 Estadísticas Generadas</h2>
+            <div class="stats" id="estadisticas"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 Datos Generados (Vista Completa)</h2>
+            <div style="overflow-x: auto;">
+                <table id="tablaDatos"></table>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>✅ Validaciones</h2>
+            <div id="validaciones"></div>
+        </div>
+    </div>
+
+    <script src="generador-datos.js"></script>
+    <script>
+        function ejecutarPrueba() {
+            // Configurar el generador
+            const gen = new GeneradorDatos();
+            
+            gen.configuracion = {
+                tamanoMuestra: 10,
+                pruebas: [{
+                    nombre: 'WAIS-IV',
+                    nombreCorto: 'W',
+                    numItems: 30,
+                    media: 5,
+                    desviacion: 2,
+                    minimo: 0,
+                    maximo: 5
+                }],
+                sociodemograficos: [{
+                    categoria: 'Edad',
+                    categoriaCorta: 'E',
+                    promedio: 15.9,
+                    desviacion: 0.84
+                }, {
+                    categoria: 'Sexo',
+                    categoriaCorta: 'S',
+                    promedio: 0.84,
+                    desviacion: 0.48
+                }]
+            };
+
+            // Generar datos
+            const datos = gen.generarBaseDatos();
+            
+            // Mostrar resultados
+            mostrarResultados(datos);
+        }
+
+        function mostrarResultados(datos) {
+            document.getElementById('resultados').style.display = 'block';
+            
+            // Estadísticas
+            const stats = calcularEstadisticas(datos);
+            mostrarEstadisticas(stats);
+            
+            // Tabla de datos
+            mostrarTabla(datos);
+            
+            // Validaciones
+            validarDatos(datos, stats);
+        }
+
+        function calcularEstadisticas(datos) {
+            const stats = {};
+            
+            // Contar ceros por ítem
+            const columnas = Object.keys(datos[0]).filter(col => col.startsWith('W'));
+            
+            stats.totalItems = columnas.length - 1; // -1 porque Total_W no cuenta
+            stats.cerosPorColumna = {};
+            stats.mediasPorColumna = {};
+            stats.minMaxPorColumna = {};
+            
+            columnas.forEach(col => {
+                if (col === 'Total_W') return;
+                
+                const valores = datos.map(fila => fila[col]);
+                const ceros = valores.filter(v => v === 0).length;
+                const suma = valores.reduce((a, b) => a + b, 0);
+                const media = suma / valores.length;
+                const min = Math.min(...valores);
+                const max = Math.max(...valores);
+                
+                stats.cerosPorColumna[col] = ceros;
+                stats.mediasPorColumna[col] = media.toFixed(2);
+                stats.minMaxPorColumna[col] = `${min}-${max}`;
+            });
+            
+            // Total de ceros
+            stats.totalCeros = Object.values(stats.cerosPorColumna).reduce((a, b) => a + b, 0);
+            stats.porcentajeCeros = ((stats.totalCeros / (datos.length * stats.totalItems)) * 100).toFixed(2);
+            
+            // Media del total
+            const totales = datos.map(d => d.Total_W);
+            stats.mediaTotal = (totales.reduce((a, b) => a + b, 0) / totales.length).toFixed(2);
+            stats.minTotal = Math.min(...totales);
+            stats.maxTotal = Math.max(...totales);
+            
+            return stats;
+        }
+
+        function mostrarEstadisticas(stats) {
+            const container = document.getElementById('estadisticas');
+            container.innerHTML = `
+                <div class="stat-box">
+                    <div class="stat-label">Total de Ceros</div>
+                    <div class="stat-value">${stats.totalCeros}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">% de Ceros</div>
+                    <div class="stat-value">${stats.porcentajeCeros}%</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Media Total</div>
+                    <div class="stat-value">${stats.mediaTotal}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Rango Total</div>
+                    <div class="stat-value">${stats.minTotal}-${stats.maxTotal}</div>
+                </div>
+            `;
+        }
+
+        function mostrarTabla(datos) {
+            const table = document.getElementById('tablaDatos');
+            
+            // Encabezados
+            const columnas = Object.keys(datos[0]);
+            let html = '<thead><tr>';
+            columnas.forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            // Datos
+            datos.forEach(fila => {
+                html += '<tr>';
+                columnas.forEach(col => {
+                    const valor = fila[col];
+                    const estilo = valor === 0 ? 'background: #ffcccc;' : '';
+                    html += `<td style="${estilo}">${typeof valor === 'number' ? valor.toFixed(2) : valor}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+
+        function validarDatos(datos, stats) {
+            const container = document.getElementById('validaciones');
+            const validaciones = [];
+            
+            // Validación 1: Porcentaje de ceros
+            if (parseFloat(stats.porcentajeCeros) > 50) {
+                validaciones.push({
+                    tipo: 'warning',
+                    mensaje: `⚠️ ADVERTENCIA: ${stats.porcentajeCeros}% de los valores son cero. Esto es excesivo y poco realista.`
+                });
+            } else if (parseFloat(stats.porcentajeCeros) > 20) {
+                validaciones.push({
+                    tipo: 'warning',
+                    mensaje: `⚠️ Advertencia: ${stats.porcentajeCeros}% de ceros. Puede ser alto dependiendo del instrumento.`
+                });
+            } else {
+                validaciones.push({
+                    tipo: 'success',
+                    mensaje: `✅ Porcentaje de ceros (${stats.porcentajeCeros}%) es razonable.`
+                });
+            }
+            
+            // Validación 2: Media total
+            const mediaEsperada = 30 * 2.5; // 30 ítems con media esperada de 2.5 (punto medio de 0-5)
+            const diferencia = Math.abs(parseFloat(stats.mediaTotal) - mediaEsperada);
+            
+            if (diferencia < mediaEsperada * 0.2) {
+                validaciones.push({
+                    tipo: 'success',
+                    mensaje: `✅ Media total (${stats.mediaTotal}) cercana a lo esperado (~${mediaEsperada.toFixed(2)}).`
+                });
+            } else {
+                validaciones.push({
+                    tipo: 'warning',
+                    mensaje: `⚠️ Media total (${stats.mediaTotal}) se aleja de lo esperado (~${mediaEsperada.toFixed(2)}).`
+                });
+            }
+            
+            // Validación 3: Rangos por ítem
+            const itemsFueraDeRango = Object.entries(stats.minMaxPorColumna)
+                .filter(([col, rango]) => {
+                    const [min, max] = rango.split('-').map(Number);
+                    return min < 0 || max > 5;
+                });
+            
+            if (itemsFueraDeRango.length === 0) {
+                validaciones.push({
+                    tipo: 'success',
+                    mensaje: `✅ Todos los ítems están dentro del rango 0-5.`
+                });
+            } else {
+                validaciones.push({
+                    tipo: 'warning',
+                    mensaje: `⚠️ ${itemsFueraDeRango.length} ítems tienen valores fuera del rango 0-5.`
+                });
+            }
+            
+            // Mostrar validaciones
+            container.innerHTML = validaciones.map(v => 
+                `<div class="${v.tipo}">${v.mensaje}</div>`
+            ).join('');
+        }
+    </script>
+</body>
+</html>
