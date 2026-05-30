@@ -253,9 +253,7 @@ class AnalizadorEstadisticoProfesional {
 
     calcularDescriptivas(valores) {
         if (valores.length === 0) {
-            console.log(valores.length);
-            console.log(valores);
-            throw new Error(`No hay valores numéricos...`);
+            throw new Error('No hay valores numéricos para calcular las estadísticas descriptivas');
         }
 
         const n = valores.length;

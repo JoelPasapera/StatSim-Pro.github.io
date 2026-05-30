@@ -253,7 +253,7 @@ function configurarAnalizador() {
         ejecutarAnalisis();
         inicializarGraficos();
     });
-    console.log(generadorDatos.obtenerDatosGenerados());
+
     // Botón descargar resultados
     document.getElementById('btnDescargarResultados').addEventListener('click', descargarResultados);
 }
@@ -283,7 +283,6 @@ function cargarDatosGenerados() {
 
         // Almacenar datos generados globalmente para los gráficos
         window.datosGenerados = datos;
-        console.log("Datos generados:", datos);
     } catch (error) {
         mostrarToast(error.message, 'error');
     }
@@ -412,8 +411,6 @@ function ejecutarAnalisis() {
             // Contexto de investigación
             const unidadAnalisis = document.getElementById('unidadAnalisis').value;
             const lugarContexto = document.getElementById('lugarContexto').value;
-            console.log("Unidad (texto):", unidadAnalisis);
-            console.log("Contexto (texto):", lugarContexto);
 
             // Marco metodológico
             const marco = AnalizadorEstadistico.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
@@ -1062,9 +1059,7 @@ function agregarFilaSocioConDatos(datos) {
 // ========================================
 
 function inicializarGraficos() {
-    console.log('Inicializando gráficos...');
     const datos = generadorDatos.obtenerDatosGenerados();
-    console.log('Datos generados para gráficos:', datos);
     // Verificar que existan los datos generados
     if (!datos || datos.length === 0) {
         console.warn('No hay datos generados para mostrar gráficos');
@@ -1151,8 +1146,6 @@ function inicializarGraficos() {
                 title: 'Densidad de Distribución por Prueba'
             });
         }
-
-        console.log('Gráficos inicializados correctamente');
 
     } catch (error) {
         console.error('Error al inicializar gráficos:', error);
