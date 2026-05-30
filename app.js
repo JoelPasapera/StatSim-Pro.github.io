@@ -395,6 +395,7 @@ function ejecutarAnalisis() {
             // Generar todas las secciones dinámicamente
             mostrarMarcoMetodologico(marco);
             mostrarDescriptivas(var1, var2, resultado);
+            mostrarFiabilidad(var1, var2);
             mostrarPruebasNormalidad(var1, var2, resultado);
             mostrarCorrelacion(var1, var2, resultado);
             mostrarRegresion(var1, var2, resultado);
@@ -693,6 +694,75 @@ function mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto) 
     container.style.display = 'block';
 }
 
+// Muestra el alfa de Cronbach de las escalas cuyas dimensiones (ítems) haya
+// configurado el usuario. Es opcional: si no hay dimensiones, no se muestra.
+function mostrarFiabilidad(var1, var2) {
+    const container = document.getElementById('resultadosFiabilidad');
+    if (!container) return;
+
+    const dim1 = document.getElementById('dimensionesVar1').value.trim();
+    const dim2 = document.getElementById('dimensionesVar2').value.trim();
+
+    if (!dim1 && !dim2) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    let bloques = '';
+    try {
+        if (dim1) {
+            AnalizadorEstadistico.parsearDimensionesDesdeString(var1, dim1);
+            bloques += bloqueFiabilidad(var1, AnalizadorEstadistico.calcularFiabilidadVariable(var1));
+        }
+        if (dim2) {
+            AnalizadorEstadistico.parsearDimensionesDesdeString(var2, dim2);
+            bloques += bloqueFiabilidad(var2, AnalizadorEstadistico.calcularFiabilidadVariable(var2));
+        }
+    } catch (error) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        mostrarToast('Fiabilidad: ' + error.message, 'warning');
+        return;
+    }
+
+    if (!bloques) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="result-section">
+            <h3 class="section-title">Análisis de Fiabilidad (Alfa de Cronbach)</h3>
+            <p class="result-subtitle">Consistencia interna de cada escala y sus dimensiones. Según George y Mallery (2003), un α ≥ .70 indica una fiabilidad aceptable; ≥ .80 buena y ≥ .90 excelente.</p>
+            ${bloques}
+        </div>`;
+    container.style.display = 'block';
+}
+
+function bloqueFiabilidad(variable, fiab) {
+    if (!fiab || !fiab.escala) return '';
+
+    const fila = (etiqueta, f) => f
+        ? `<tr><td>${etiqueta}</td><td><strong>${f.alfa.toFixed(3)}</strong></td><td>${f.k}</td><td>${f.interpretacion}</td></tr>`
+        : `<tr><td>${etiqueta}</td><td colspan="3">No disponible (se requieren ≥ 2 ítems)</td></tr>`;
+
+    const filasDimensiones = fiab.dimensiones
+        .map(d => fila(`Dimensión: ${d.nombre}`, d.fiabilidad))
+        .join('');
+
+    return `
+        <div class="result-box" style="margin-bottom: 1rem;">
+            <h5 style="margin-bottom: 0.5rem; font-weight: 600;">Escala: ${variable}</h5>
+            <table class="result-table">
+                <tr><th>Componente</th><th>α de Cronbach</th><th>N° ítems</th><th>Interpretación</th></tr>
+                ${fila('Escala total', fiab.escala)}
+                ${filasDimensiones}
+            </table>
+        </div>`;
+}
+
 function mostrarDispersion(var1, var2, resultado) {
     const container = document.getElementById('resultadosDispersion');
     if (!container) return;
@@ -976,6 +1046,7 @@ function descargarResultados() {
     // Las secciones opcionales (descriptivos, APA, dimensiones) se filtran si están vacías.
     const secciones = [
         ['ESTADÍSTICOS DESCRIPTIVOS', textoContenedor('resultadosDescriptivas')],
+        ['ANÁLISIS DE FIABILIDAD (ALFA DE CRONBACH)', textoContenedor('resultadosFiabilidad')],
         ['PRUEBA DE NORMALIDAD', textoContenedor('pruebasNormalidadContainer')],
         ['ANÁLISIS DE CORRELACIÓN', textoContenedor('resultadosCorrelacion')],
         ['REGRESIÓN LINEAL SIMPLE', textoContenedor('resultadosRegresion')],

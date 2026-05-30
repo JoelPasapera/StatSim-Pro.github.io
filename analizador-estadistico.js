@@ -1070,6 +1070,80 @@ class AnalizadorEstadisticoProfesional {
         });
     }
 
+    // Varianza muestral (denominador n − 1).
+    varianzaMuestral(valores) {
+        const n = valores.length;
+        if (n < 2) return 0;
+        const media = valores.reduce((a, b) => a + b, 0) / n;
+        const suma = valores.reduce((a, v) => a + (v - media) * (v - media), 0);
+        return suma / (n - 1);
+    }
+
+    /**
+     * Coeficiente alfa de Cronbach de un conjunto de ítems:
+     *   α = (k / (k − 1)) · (1 − Σ σ²_i / σ²_total)
+     * Solo se consideran las filas con todos los ítems numéricos. Devuelve null
+     * si hay menos de 2 ítems, menos de 2 casos válidos o varianza total nula.
+     */
+    calcularAlfaCronbach(items) {
+        const k = items.length;
+        if (k < 2) return null;
+
+        // Matriz de respuestas (solo casos completos)
+        const filas = (this.datos || [])
+            .map(fila => items.map(item => parseFloat(fila[item])))
+            .filter(fila => fila.every(v => isFinite(v)));
+
+        const n = filas.length;
+        if (n < 2) return null;
+
+        // Suma de las varianzas de cada ítem
+        let sumaVarianzasItems = 0;
+        for (let j = 0; j < k; j++) {
+            sumaVarianzasItems += this.varianzaMuestral(filas.map(fila => fila[j]));
+        }
+
+        // Varianza del puntaje total (suma de ítems)
+        const totales = filas.map(fila => fila.reduce((a, b) => a + b, 0));
+        const varianzaTotal = this.varianzaMuestral(totales);
+        if (varianzaTotal === 0) return null;
+
+        const alfa = (k / (k - 1)) * (1 - sumaVarianzasItems / varianzaTotal);
+        return { alfa: alfa, k: k, n: n, interpretacion: this.interpretarAlfaCronbach(alfa) };
+    }
+
+    // Interpretación del alfa de Cronbach (bandas de George y Mallery, 2003).
+    interpretarAlfaCronbach(alfa) {
+        if (alfa >= 0.9) return 'excelente';
+        if (alfa >= 0.8) return 'buena';
+        if (alfa >= 0.7) return 'aceptable';
+        if (alfa >= 0.6) return 'cuestionable';
+        if (alfa >= 0.5) return 'pobre';
+        return 'inaceptable';
+    }
+
+    /**
+     * Fiabilidad de una variable con dimensiones configuradas: alfa de la
+     * escala completa (todos los ítems) y de cada dimensión. Devuelve null si
+     * la variable no tiene dimensiones configuradas.
+     */
+    calcularFiabilidadVariable(variable) {
+        const dimensiones = this.obtenerDimensiones(variable);
+        if (!dimensiones) return null;
+
+        const itemsEscala = Object.values(dimensiones).flat();
+        const porDimension = Object.entries(dimensiones).map(([nombre, items]) => ({
+            nombre: nombre,
+            items: items,
+            fiabilidad: this.calcularAlfaCronbach(items)
+        }));
+
+        return {
+            escala: this.calcularAlfaCronbach(itemsEscala),
+            dimensiones: porDimension
+        };
+    }
+
     /**
      * Prueba de normalidad para un array de valores
      */
