@@ -99,6 +99,64 @@ function configurarGenerador() {
             }
         });
     }
+
+    // Diferencias por grupo
+    const btnDiferencia = document.getElementById('btnAgregarDiferencia');
+    if (btnDiferencia) {
+        btnDiferencia.addEventListener('click', agregarFilaDiferencia);
+    }
+    const bodyDiferencias = document.getElementById('bodyDiferencias');
+    if (bodyDiferencias) {
+        bodyDiferencias.addEventListener('click', function (e) {
+            if (e.target.closest('.btn-delete')) {
+                e.target.closest('tr').remove();
+            }
+        });
+    }
+}
+
+// Variables que pueden usarse como agrupación: sociodemográficas Binaria o
+// Categórica.
+function obtenerVariablesAgrupacion() {
+    const nombres = [];
+    document.querySelectorAll('#bodySocio .fila-socio').forEach(fila => {
+        const select = fila.querySelector('select');
+        const dist = select ? select.value : 'normal';
+        if (dist === 'binaria' || dist === 'categorica') {
+            const categoria = fila.querySelector('input').value.trim();
+            if (categoria) nombres.push(categoria);
+        }
+    });
+    return nombres;
+}
+
+function agregarFilaDiferencia() {
+    const cuantitativas = obtenerVariablesCorrelacionables();
+    const agrupaciones = obtenerVariablesAgrupacion();
+    if (cuantitativas.length === 0 || agrupaciones.length === 0) {
+        mostrarToast('Necesitas al menos una variable cuantitativa y una de agrupación (Binaria o Categórica)', 'warning');
+        return;
+    }
+
+    const tbody = document.getElementById('bodyDiferencias');
+    const fila = document.createElement('tr');
+    fila.className = 'fila-diferencia';
+
+    const opcionesCuant = cuantitativas.map(n => `<option value="${n}">${n}</option>`).join('');
+    const opcionesGrupo = agrupaciones.map(n => `<option value="${n}">${n}</option>`).join('');
+    fila.innerHTML = `
+        <td><select class="input input-sm" aria-label="Variable cuantitativa"><option value="">Variable...</option>${opcionesCuant}</select></td>
+        <td><select class="input input-sm" aria-label="Variable de agrupación"><option value="">Agrupación...</option>${opcionesGrupo}</select></td>
+        <td><input type="number" class="input input-sm" step="0.1" placeholder="Ej: 0.5" aria-label="d de Cohen"></td>
+        <td>
+            <button type="button" class="btn-icon btn-delete" title="Eliminar" aria-label="Eliminar fila">
+                <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 4H13M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M6 7V11M10 7V11M4 4H12L11.5 13C11.5 13.5523 11.0523 14 10.5 14H5.5C4.94772 14 4.5 13.5523 4.5 13L4 4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(fila);
 }
 
 // Lista de variables que pueden correlacionarse: nombres de las escalas y de

@@ -333,6 +333,37 @@
                     </p>
                 </div>
 
+                <!-- Tabla IV: Diferencias por grupo (opcional) -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">IV. Diferencias por Grupo (opcional)</h3>
+                        <button id="btnAgregarDiferencia" type="button" class="btn btn-secondary">
+                            <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            Agregar Diferencia
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="table" id="tablaDiferencias">
+                            <thead>
+                                <tr>
+                                    <th>Variable cuantitativa</th>
+                                    <th>Variable de agrupación</th>
+                                    <th>Tamaño del efecto (d de Cohen)</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyDiferencias"></tbody>
+                        </table>
+                    </div>
+                    <p class="help-text" style="margin-top: 0.5rem;">
+                        Hace que la media de una variable <strong>cuantitativa</strong> difiera según una variable de
+                        <strong>agrupación</strong> (Binaria o Categórica), con el tamaño del efecto (d de Cohen)
+                        indicado. Alimenta la comparación de grupos (t / ANOVA). Sin filas = sin diferencias.
+                    </p>
+                </div>
+
                 <!-- Botones de Acción -->
                 <div class="actions-bar">
                     <button id="btnGenerar" class="btn btn-primary btn-lg">

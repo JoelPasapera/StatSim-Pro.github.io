@@ -77,7 +77,33 @@ class GeneradorDatos {
         // Correlaciones objetivo (opcionales)
         this.configuracion.correlaciones = this.recolectarCorrelaciones();
 
+        // Diferencias por grupo (opcionales)
+        this.configuracion.diferenciasGrupo = this.recolectarDiferenciasGrupo();
+
         return this.configuracion;
+    }
+
+    // Lee las diferencias por grupo de la tabla (variable cuantitativa,
+    // variable de agrupación y d de Cohen).
+    recolectarDiferenciasGrupo() {
+        const diferencias = [];
+        const filas = document.querySelectorAll('#bodyDiferencias .fila-diferencia');
+
+        filas.forEach(fila => {
+            const selects = fila.querySelectorAll('select');
+            const inputD = fila.querySelector('input');
+            if (selects.length < 2 || !inputD) return;
+
+            const cuantitativa = selects[0].value;
+            const agrupacion = selects[1].value;
+            const d = parseFloat(inputD.value);
+
+            if (cuantitativa && agrupacion && cuantitativa !== agrupacion && !isNaN(d)) {
+                diferencias.push({ cuantitativa: cuantitativa, agrupacion: agrupacion, d: d });
+            }
+        });
+
+        return diferencias;
     }
 
     // Lee las correlaciones objetivo de la tabla (pares de variables + r).
@@ -303,6 +329,9 @@ class GeneradorDatos {
                 // Agregar total
                 participante[`Total_${prueba.nombreCorto}`] = puntajes.total;
             });
+
+            // Aplicar diferencias por grupo (desplazan la media según el grupo)
+            this.aplicarDiferenciasGrupo(participante);
 
             datos.push(participante);
         }
@@ -531,6 +560,77 @@ class GeneradorDatos {
 
         this.correlVariables = variables;
         this.correlL = m > 0 ? this.descomposicionCholesky(R) : [];
+    }
+
+    /**
+     * Aplica las diferencias por grupo a un participante: desplaza la media de
+     * la variable cuantitativa según el grupo al que pertenece. El
+     * desplazamiento es d·σ·(código − códigoMedio), de modo que entre dos
+     * grupos adyacentes la diferencia estandarizada sea ≈ d (de Cohen). En las
+     * escalas el desplazamiento se reparte entre los ítems para mantener la
+     * coherencia ítems↔total.
+     */
+    aplicarDiferenciasGrupo(participante) {
+        (this.configuracion.diferenciasGrupo || []).forEach(dif => {
+            const agrup = this.configuracion.sociodemograficos.find(s => s.categoria === dif.agrupacion);
+            if (!agrup) return;
+
+            const codigo = participante[agrup.categoriaCorta];
+            let codigoMedio;
+            if (agrup.distribucion === 'binaria') {
+                codigoMedio = 0.5;
+            } else if (agrup.distribucion === 'categorica') {
+                codigoMedio = (agrup.minimo + agrup.maximo) / 2;
+            } else {
+                return; // solo binaria/categórica sirven como agrupación
+            }
+
+            const escala = this.configuracion.pruebas.find(p => p.nombre === dif.cuantitativa);
+            if (escala) {
+                const sigma = escala.desviacion;
+                // Desplazamiento del TOTAL repartido como unidades enteras entre
+                // los ítems (un desplazamiento fraccionario por ítem se perdería
+                // al redondear a entero).
+                let unidades = Math.round(dif.d * sigma * (codigo - codigoMedio));
+                const min = escala.minimo !== null ? escala.minimo : 1;
+                const max = escala.maximo !== null ? escala.maximo : 7;
+
+                if (unidades !== 0) {
+                    const paso = unidades > 0 ? 1 : -1;
+                    let restantes = Math.abs(unidades);
+                    let idx = 0;
+                    let intentos = 0;
+                    const limiteIntentos = escala.numItems * 4;
+                    while (restantes > 0 && intentos < limiteIntentos) {
+                        const col = escala.nombreCorto + (idx % escala.numItems + 1);
+                        const nuevo = participante[col] + paso;
+                        if (nuevo >= min && nuevo <= max) {
+                            participante[col] = nuevo;
+                            restantes--;
+                        }
+                        idx++;
+                        intentos++;
+                    }
+                }
+
+                let total = 0;
+                for (let idx = 0; idx < escala.numItems; idx++) {
+                    total += participante[escala.nombreCorto + (idx + 1)];
+                }
+                participante['Total_' + escala.nombreCorto] = total;
+                return;
+            }
+
+            const socio = this.configuracion.sociodemograficos.find(s => s.categoria === dif.cuantitativa);
+            if (socio) {
+                let v = participante[socio.categoriaCorta] + dif.d * socio.desviacion * (codigo - codigoMedio);
+                if (socio.minimo !== null && socio.maximo !== null) {
+                    v = Math.max(socio.minimo, Math.min(socio.maximo, v));
+                }
+                const factor = Math.pow(10, socio.decimales);
+                participante[socio.categoriaCorta] = Math.round(v * factor) / factor;
+            }
+        });
     }
 
     // Genera el vector de valores normales correlacionados (uno por variable
