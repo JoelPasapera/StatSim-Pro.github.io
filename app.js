@@ -158,15 +158,26 @@ function generarBaseDatos() {
 
         // Generar datos
         mostrarToast('Generando base de datos...', 'success');
+        const boton = document.getElementById('btnGenerar');
+        boton.disabled = true; // Evitar doble ejecución mientras se procesa
 
         setTimeout(() => {
-            const datos = generadorDatos.generarBaseDatos();
-            // Almacenar datos generados globalmente para los gráficos
-            window.datosGenerados = datos;
-            mostrarPreview(datos);
-            habilitarDescargaCSV();
-            habilitarUsarGenerados();
-            mostrarToast('¡Base de datos generada exitosamente!', 'success');
+            // try/catch dentro del setTimeout: los errores de la generación se
+            // lanzan de forma asíncrona y el catch externo no los capturaría.
+            try {
+                const datos = generadorDatos.generarBaseDatos();
+                // Almacenar datos generados globalmente para los gráficos
+                window.datosGenerados = datos;
+                mostrarPreview(datos);
+                habilitarDescargaCSV();
+                habilitarUsarGenerados();
+                mostrarToast('¡Base de datos generada exitosamente!', 'success');
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+                console.error(error);
+            } finally {
+                boton.disabled = false;
+            }
         }, 300);
 
     } catch (error) {
@@ -228,11 +239,8 @@ function configurarAnalizador() {
     // Input file CSV
     document.getElementById('fileInput').addEventListener('change', cargarArchivoCSV);
 
-    // Botón analizar (se genera el análisis con los graficos inicializados)
-    document.getElementById('btnAnalizar').addEventListener('click', function () {
-        ejecutarAnalisis();
-        inicializarGraficos();
-    });
+    // Botón analizar (ejecutarAnalisis ya inicializa los gráficos al final)
+    document.getElementById('btnAnalizar').addEventListener('click', ejecutarAnalisis);
 
     // Botón descargar resultados
     document.getElementById('btnDescargarResultados').addEventListener('click', descargarResultados);
@@ -349,25 +357,31 @@ function mostrarDatosCargados(datos) {
 }
 
 function ejecutarAnalisis() {
-    try {
-        const var1 = document.getElementById('variable1').value;
-        const var2 = document.getElementById('variable2').value;
-        const tipoPruebaSeleccionado = document.querySelector('input[name="tipoPrueba"]:checked');
-        const tipoPrueba = tipoPruebaSeleccionado ? tipoPruebaSeleccionado.value : 'bilateral';
+    const boton = document.getElementById('btnAnalizar');
+    const var1 = document.getElementById('variable1').value;
+    const var2 = document.getElementById('variable2').value;
+    const tipoPruebaSeleccionado = document.querySelector('input[name="tipoPrueba"]:checked');
+    const tipoPrueba = tipoPruebaSeleccionado ? tipoPruebaSeleccionado.value : 'bilateral';
 
-        if (!var1 || !var2) {
-            mostrarToast('Por favor selecciona ambas variables', 'warning');
-            return;
-        }
+    if (!var1 || !var2) {
+        mostrarToast('Por favor selecciona ambas variables', 'warning');
+        return;
+    }
 
-        if (var1 === var2) {
-            mostrarToast('Las variables deben ser diferentes', 'warning');
-            return;
-        }
+    if (var1 === var2) {
+        mostrarToast('Las variables deben ser diferentes', 'warning');
+        return;
+    }
 
-        mostrarToast('Ejecutando análisis...', 'success');
+    mostrarToast('Ejecutando análisis...', 'success');
+    // Evitar doble ejecución mientras se procesa
+    boton.disabled = true;
 
-        setTimeout(() => {
+    setTimeout(() => {
+        // El try/catch va DENTRO del setTimeout: los errores del cálculo (p. ej.
+        // una variable constante) se lanzan aquí, de forma asíncrona, así que el
+        // catch externo no los vería y el toast nunca aparecería.
+        try {
             // Contexto de investigación
             const unidadAnalisis = document.getElementById('unidadAnalisis').value;
             const lugarContexto = document.getElementById('lugarContexto').value;
@@ -389,13 +403,17 @@ function ejecutarAnalisis() {
             // Mostrar referencias bibliográficas
             mostrarReferencias(var1, var2, resultado);
 
-            mostrarToast('Análisis completado exitosamente', 'success');
-        }, 300);
+            // Inicializar los gráficos solo cuando el análisis se completó
+            inicializarGraficos();
 
-    } catch (error) {
-        mostrarToast(error.message, 'error');
-        console.error(error);
-    }
+            mostrarToast('Análisis completado exitosamente', 'success');
+        } catch (error) {
+            mostrarToast(error.message, 'error');
+            console.error(error);
+        } finally {
+            boton.disabled = false;
+        }
+    }, 300);
 }
 
 function mostrarMarcoMetodologico(marco) {
