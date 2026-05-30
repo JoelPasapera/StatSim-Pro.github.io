@@ -890,6 +890,8 @@ function mostrarComparacion(varCuantitativa, varAgrupacion, resultado) {
         ? `t(${prueba.gl.toFixed(2)}) = ${prueba.estadistico.toFixed(3)}`
         : `U = ${prueba.U.toFixed(1)}, z = ${prueba.z.toFixed(3)}`;
 
+    const lineaApa = lineaApaComparacion(varCuantitativa, varAgrupacion, resultado);
+
     container.innerHTML = `
         <div class="result-section">
             <h3 class="section-title">Comparación de Grupos</h3>
@@ -915,6 +917,8 @@ function mostrarComparacion(varCuantitativa, varAgrupacion, resultado) {
                 </table>
             </div>
 
+            ${bloqueApaComparacionHTML(lineaApa)}
+
             <div class="result-box" style="display: flex; justify-content: center;">
                 <div id="cajaGrupos"></div>
             </div>
@@ -929,6 +933,7 @@ function mostrarComparacion(varCuantitativa, varAgrupacion, resultado) {
         </div>`;
     container.style.display = 'block';
     dibujarCajaGrupos(resultado);
+    conectarCopiaComparacion(lineaApa);
     desplazarHacia(container);
 }
 
@@ -991,6 +996,8 @@ function mostrarComparacionVarios(varCuantitativa, varAgrupacion, resultado) {
         ? `Existen diferencias estadísticamente significativas en ${varCuantitativa} entre al menos dos de los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}). Las comparaciones por pares (Bonferroni) indican entre qué grupos se encuentran las diferencias.`
         : `No se hallaron diferencias estadísticamente significativas en ${varCuantitativa} entre los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}).`;
 
+    const lineaApa = lineaApaComparacion(varCuantitativa, varAgrupacion, resultado);
+
     container.innerHTML = `
         <div class="result-section">
             <h3 class="section-title">Comparación de Grupos (${k} grupos)</h3>
@@ -1017,6 +1024,8 @@ function mostrarComparacionVarios(varCuantitativa, varAgrupacion, resultado) {
 
             ${postHocHtml}
 
+            ${bloqueApaComparacionHTML(lineaApa)}
+
             <div class="result-box" style="display: flex; justify-content: center;">
                 <div id="cajaGrupos"></div>
             </div>
@@ -1031,7 +1040,45 @@ function mostrarComparacionVarios(varCuantitativa, varAgrupacion, resultado) {
         </div>`;
     container.style.display = 'block';
     dibujarCajaGrupos(resultado);
+    conectarCopiaComparacion(lineaApa);
     desplazarHacia(container);
+}
+
+// Construye la frase en formato APA de una comparación de grupos.
+function lineaApaComparacion(varCuantitativa, varAgrupacion, resultado) {
+    const prueba = resultado.prueba;
+    const pTexto = formatearPApa(prueba.pValor);
+
+    if (prueba.prueba === 'U de Mann-Whitney') {
+        return `Se comparó ${varCuantitativa} entre los grupos de ${varAgrupacion} mediante la U de Mann-Whitney: U = ${prueba.U.toFixed(0)}, Z = ${prueba.z.toFixed(2)}, ${pTexto}.`;
+    }
+    if (prueba.prueba === 'ANOVA de una vía') {
+        return `Una ANOVA de una vía comparó ${varCuantitativa} entre los grupos de ${varAgrupacion}: F(${prueba.glEntre}, ${prueba.glDentro}) = ${prueba.F.toFixed(2)}, ${pTexto}, η² = ${formatearRApa(prueba.etaCuadrado)}.`;
+    }
+    if (prueba.prueba === 'Kruskal-Wallis') {
+        return `La prueba de Kruskal-Wallis comparó ${varCuantitativa} entre los grupos de ${varAgrupacion}: H(${prueba.gl}) = ${prueba.H.toFixed(2)}, ${pTexto}, ε² = ${formatearRApa(prueba.epsilonCuadrado)}.`;
+    }
+    // t de Student o de Welch
+    const decimalesGl = prueba.prueba.includes('Welch') ? 2 : 0;
+    const d = resultado.tamanoEfecto ? `, d de Cohen = ${formatearRApa(resultado.tamanoEfecto.d)}` : '';
+    return `Se comparó ${varCuantitativa} entre los grupos de ${varAgrupacion} mediante la ${prueba.prueba}: t(${prueba.gl.toFixed(decimalesGl)}) = ${prueba.estadistico.toFixed(2)}, ${pTexto}${d}.`;
+}
+
+// HTML de la caja APA (frase citable + botón de copiar) para la comparación.
+function bloqueApaComparacionHTML(linea) {
+    return `
+        <div class="result-box apa-box">
+            <p class="apa-text">${linea}</p>
+            <button type="button" id="btnCopiarComparacion" class="btn btn-outline">Copiar</button>
+        </div>`;
+}
+
+// Conecta el botón de copiar de la comparación.
+function conectarCopiaComparacion(linea) {
+    const btn = document.getElementById('btnCopiarComparacion');
+    if (btn) {
+        btn.addEventListener('click', () => copiarTexto(linea));
+    }
 }
 
 // Interpretación en lenguaje natural de la comparación de grupos.
