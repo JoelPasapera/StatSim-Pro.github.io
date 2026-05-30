@@ -452,17 +452,31 @@
 
                 <!-- Selección de Variables -->
                 <div id="seleccionContainer" class="card" style="display: none;">
-                    <h3 class="card-title">Análisis de Correlación</h3>
+                    <h3 class="card-title">Análisis Estadístico</h3>
+
+                    <div class="form-group">
+                        <label id="labelTipoAnalisis">Tipo de análisis</label>
+                        <div class="radio-group" role="radiogroup" aria-labelledby="labelTipoAnalisis">
+                            <label class="radio-label">
+                                <input type="radio" name="tipoAnalisis" value="correlacion" checked>
+                                <span>Correlación (dos variables cuantitativas)</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="tipoAnalisis" value="comparacion">
+                                <span>Comparación de dos grupos</span>
+                            </label>
+                        </div>
+                    </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="variable1">Variable 1</label>
+                            <label for="variable1" id="labelVariable1">Variable 1</label>
                             <select id="variable1" class="input">
                                 <option value="">Seleccionar variable...</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="variable2">Variable 2</label>
+                            <label for="variable2" id="labelVariable2">Variable 2</label>
                             <select id="variable2" class="input">
                                 <option value="">Seleccionar variable...</option>
                             </select>
@@ -514,6 +528,9 @@
                 <div id="resultadosReporteAPA" style="display: none;"></div>
                 <div id="resultadosDimensiones" style="display: none;"></div>
                 <div id="resultadosDiscusion" style="display: none;"></div>
+
+                <!-- Resultados de comparación de grupos -->
+                <div id="resultadosComparacion" style="display: none;"></div>
 
                 <!-- Botón Descargar Resultados -->
                 <button id="btnDescargarResultados" class="btn btn-outline">

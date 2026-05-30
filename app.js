@@ -242,8 +242,29 @@ function configurarAnalizador() {
     // Botón analizar (ejecutarAnalisis ya inicializa los gráficos al final)
     document.getElementById('btnAnalizar').addEventListener('click', ejecutarAnalisis);
 
+    // Cambio de tipo de análisis: actualizar las etiquetas de los selectores
+    document.querySelectorAll('input[name="tipoAnalisis"]').forEach(radio => {
+        radio.addEventListener('change', actualizarEtiquetasAnalisis);
+    });
+
     // Botón descargar resultados
     document.getElementById('btnDescargarResultados').addEventListener('click', descargarResultados);
+}
+
+// Ajusta las etiquetas de los selectores según el tipo de análisis elegido.
+function actualizarEtiquetasAnalisis() {
+    const seleccionado = document.querySelector('input[name="tipoAnalisis"]:checked');
+    const tipo = seleccionado ? seleccionado.value : 'correlacion';
+    const label1 = document.getElementById('labelVariable1');
+    const label2 = document.getElementById('labelVariable2');
+
+    if (tipo === 'comparacion') {
+        if (label1) label1.textContent = 'Variable cuantitativa';
+        if (label2) label2.textContent = 'Variable de agrupación (2 grupos)';
+    } else {
+        if (label1) label1.textContent = 'Variable 1';
+        if (label2) label2.textContent = 'Variable 2';
+    }
 }
 
 function cargarDatosGenerados() {
@@ -356,10 +377,31 @@ function mostrarDatosCargados(datos) {
     desplazarHacia(container);
 }
 
+// Oculta y vacía todos los contenedores de resultados antes de cada análisis,
+// para que no se mezclen salidas de correlación y de comparación de grupos.
+function limpiarResultados() {
+    const ids = [
+        'marcoMetodologicoContainer', 'resultadosDescriptivas', 'resultadosFiabilidad',
+        'pruebasNormalidadContainer', 'resultadosCorrelacion', 'resultadosRegresion',
+        'resultadosDispersion', 'resultadosDecision', 'resultadosReporteAPA',
+        'resultadosDimensiones', 'resultadosDiscusion', 'resultadosContainer',
+        'resultadosComparacion'
+    ];
+    ids.forEach(id => {
+        const elem = document.getElementById(id);
+        if (elem) {
+            elem.style.display = 'none';
+            elem.innerHTML = '';
+        }
+    });
+}
+
 function ejecutarAnalisis() {
     const boton = document.getElementById('btnAnalizar');
     const var1 = document.getElementById('variable1').value;
     const var2 = document.getElementById('variable2').value;
+    const tipoAnalisisSeleccionado = document.querySelector('input[name="tipoAnalisis"]:checked');
+    const tipoAnalisis = tipoAnalisisSeleccionado ? tipoAnalisisSeleccionado.value : 'correlacion';
     const tipoPruebaSeleccionado = document.querySelector('input[name="tipoPrueba"]:checked');
     const tipoPrueba = tipoPruebaSeleccionado ? tipoPruebaSeleccionado.value : 'bilateral';
 
@@ -382,35 +424,12 @@ function ejecutarAnalisis() {
         // una variable constante) se lanzan aquí, de forma asíncrona, así que el
         // catch externo no los vería y el toast nunca aparecería.
         try {
-            // Contexto de investigación
-            const unidadAnalisis = document.getElementById('unidadAnalisis').value;
-            const lugarContexto = document.getElementById('lugarContexto').value;
-
-            // Marco metodológico
-            const marco = AnalizadorEstadistico.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
-
-            // Calcular correlación
-            const resultado = AnalizadorEstadistico.calcularCorrelacion(var1, var2, tipoPrueba);
-
-            // Generar todas las secciones dinámicamente
-            mostrarMarcoMetodologico(marco);
-            mostrarDescriptivas(var1, var2, resultado);
-            mostrarFiabilidad(var1, var2);
-            mostrarPruebasNormalidad(var1, var2, resultado);
-            mostrarCorrelacion(var1, var2, resultado);
-            mostrarRegresion(var1, var2, resultado);
-            mostrarDispersion(var1, var2, resultado);
-            mostrarDecision(var1, var2, resultado);
-            mostrarReporteAPA(var1, var2, resultado);
-            mostrarDimensionesSiAplica(var1, var2, tipoPrueba);
-            mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto);
-
-            // Mostrar referencias bibliográficas
-            mostrarReferencias(var1, var2, resultado);
-
-            // Inicializar los gráficos solo cuando el análisis se completó
-            inicializarGraficos();
-
+            limpiarResultados();
+            if (tipoAnalisis === 'comparacion') {
+                ejecutarComparacion(var1, var2);
+            } else {
+                ejecutarCorrelacion(var1, var2, tipoPrueba);
+            }
             mostrarToast('Análisis completado exitosamente', 'success');
         } catch (error) {
             mostrarToast(error.message, 'error');
@@ -419,6 +438,56 @@ function ejecutarAnalisis() {
             boton.disabled = false;
         }
     }, 300);
+}
+
+// Análisis de correlación entre dos variables cuantitativas.
+function ejecutarCorrelacion(var1, var2, tipoPrueba) {
+    const unidadAnalisis = document.getElementById('unidadAnalisis').value;
+    const lugarContexto = document.getElementById('lugarContexto').value;
+
+    const marco = AnalizadorEstadistico.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
+    const resultado = AnalizadorEstadistico.calcularCorrelacion(var1, var2, tipoPrueba);
+
+    mostrarMarcoMetodologico(marco);
+    mostrarDescriptivas(var1, var2, resultado);
+    mostrarFiabilidad(var1, var2);
+    mostrarPruebasNormalidad(var1, var2, resultado);
+    mostrarCorrelacion(var1, var2, resultado);
+    mostrarRegresion(var1, var2, resultado);
+    mostrarDispersion(var1, var2, resultado);
+    mostrarDecision(var1, var2, resultado);
+    mostrarReporteAPA(var1, var2, resultado);
+    mostrarDimensionesSiAplica(var1, var2, tipoPrueba);
+    mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto);
+    mostrarReferencias(var1, var2, resultado);
+
+    inicializarGraficos();
+}
+
+// Comparación de una variable cuantitativa (var1) entre los grupos definidos
+// por una variable de agrupación (var2). Solo admite 2 grupos.
+function ejecutarComparacion(varCuantitativa, varAgrupacion) {
+    const datos = AnalizadorEstadistico.obtenerDatos() || [];
+
+    // Pares (valor cuantitativo, grupo) con ambos presentes
+    const pares = datos
+        .map(fila => [parseFloat(fila[varCuantitativa]), fila[varAgrupacion]])
+        .filter(([valor, grupo]) => isFinite(valor) && grupo !== undefined && grupo !== null && grupo !== '');
+
+    const gruposDistintos = [...new Set(pares.map(par => String(par[1])))].sort();
+
+    if (gruposDistintos.length !== 2) {
+        throw new Error(`La variable de agrupación "${varAgrupacion}" debe tener exactamente 2 grupos (tiene ${gruposDistintos.length}). Elige una variable categórica binaria (p. ej. Sexo).`);
+    }
+
+    const grupo1 = pares.filter(par => String(par[1]) === gruposDistintos[0]).map(par => par[0]);
+    const grupo2 = pares.filter(par => String(par[1]) === gruposDistintos[1]).map(par => par[0]);
+
+    const etiqueta1 = `${varAgrupacion} = ${gruposDistintos[0]}`;
+    const etiqueta2 = `${varAgrupacion} = ${gruposDistintos[1]}`;
+    const resultado = AnalizadorEstadistico.compararGrupos(grupo1, grupo2, etiqueta1, etiqueta2);
+
+    mostrarComparacion(varCuantitativa, varAgrupacion, resultado);
 }
 
 function mostrarMarcoMetodologico(marco) {
@@ -798,6 +867,74 @@ function bloqueFiabilidad(variable, fiab) {
         </div>`;
 }
 
+// Muestra el reporte de comparación de dos grupos.
+function mostrarComparacion(varCuantitativa, varAgrupacion, resultado) {
+    const container = document.getElementById('resultadosComparacion');
+    if (!container) return;
+
+    const d1 = resultado.descriptivas1;
+    const d2 = resultado.descriptivas2;
+    const prueba = resultado.prueba;
+    const ef = resultado.tamanoEfecto;
+    const significativa = resultado.decision === 'rechazar';
+
+    const estadisticoTexto = resultado.parametrica
+        ? `t(${prueba.gl.toFixed(2)}) = ${prueba.estadistico.toFixed(3)}`
+        : `U = ${prueba.U.toFixed(1)}, z = ${prueba.z.toFixed(3)}`;
+
+    container.innerHTML = `
+        <div class="result-section">
+            <h3 class="section-title">Comparación de Grupos</h3>
+            <p class="result-subtitle">Comparación de <strong>${varCuantitativa}</strong> entre los grupos de <strong>${varAgrupacion}</strong>. La prueba se elige según los supuestos: t de Student o de Welch si ambos grupos son normales (según la prueba de Levene de igualdad de varianzas), o U de Mann-Whitney si alguno no es normal.</p>
+
+            <div class="result-box">
+                <h5 style="margin-bottom: 0.5rem; font-weight: 600;">Descriptivos por grupo</h5>
+                <table class="result-table">
+                    <tr><th>Grupo</th><th>N</th><th>Media</th><th>DE</th><th>Normalidad (p)</th></tr>
+                    <tr><td>${resultado.etiqueta1}</td><td>${d1.n}</td><td>${d1.media.toFixed(2)}</td><td>${d1.desviacion.toFixed(2)}</td><td>${resultado.normalidad1.pValor.toFixed(3)} (${resultado.normalidad1.normal ? 'normal' : 'no normal'})</td></tr>
+                    <tr><td>${resultado.etiqueta2}</td><td>${d2.n}</td><td>${d2.media.toFixed(2)}</td><td>${d2.desviacion.toFixed(2)}</td><td>${resultado.normalidad2.pValor.toFixed(3)} (${resultado.normalidad2.normal ? 'normal' : 'no normal'})</td></tr>
+                </table>
+            </div>
+
+            <div class="result-box">
+                <table class="result-table">
+                    <tr><td>Levene (igualdad de varianzas):</td><td>F(${resultado.levene.df1}, ${resultado.levene.df2}) = ${resultado.levene.estadistico.toFixed(3)}, p = ${resultado.levene.pValor.toFixed(4)} (${resultado.levene.varianzasIguales ? 'varianzas iguales' : 'varianzas desiguales'})</td></tr>
+                    <tr><td>Prueba aplicada:</td><td><strong>${prueba.prueba}</strong></td></tr>
+                    <tr><td>Estadístico:</td><td>${estadisticoTexto}</td></tr>
+                    <tr><td>p-valor (bilateral):</td><td><strong>${prueba.pValor.toFixed(4)}</strong></td></tr>
+                    <tr><td>Tamaño del efecto (d de Cohen):</td><td><strong>${ef.d.toFixed(3)}</strong> (${ef.interpretacion})</td></tr>
+                    <tr><td>Decisión sobre H₀:</td><td class="${significativa ? 'decision-reject' : 'decision-accept'}"><strong>${significativa ? 'SE RECHAZA H₀' : 'NO SE RECHAZA H₀'}</strong></td></tr>
+                </table>
+            </div>
+
+            <div class="result-box interpretation-box interpretation-box--hipotesis">
+                <h5 class="interpretation-title">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/></svg>
+                    Interpretación
+                </h5>
+                <p class="interpretation-text">${interpretarComparacion(varCuantitativa, varAgrupacion, resultado)}</p>
+            </div>
+        </div>`;
+    container.style.display = 'block';
+    desplazarHacia(container);
+}
+
+// Interpretación en lenguaje natural de la comparación de grupos.
+function interpretarComparacion(varCuantitativa, varAgrupacion, resultado) {
+    const significativa = resultado.decision === 'rechazar';
+    const d1 = resultado.descriptivas1;
+    const d2 = resultado.descriptivas2;
+    const grupoMayor = d1.media >= d2.media ? resultado.etiqueta1 : resultado.etiqueta2;
+    const prueba = resultado.prueba;
+    const ef = resultado.tamanoEfecto;
+    const pTexto = prueba.pValor < 0.001 ? 'p < .001' : 'p = ' + prueba.pValor.toFixed(3).replace(/^0/, '');
+
+    if (significativa) {
+        return `Existe una diferencia estadísticamente significativa en ${varCuantitativa} entre los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}). El grupo "${grupoMayor}" presenta la media más alta. La magnitud de la diferencia es de tamaño ${ef.interpretacion} (d de Cohen = ${ef.d.toFixed(2)}). Una diferencia significativa no implica causalidad cuando los grupos no se asignaron al azar.`;
+    }
+    return `No se hallaron diferencias estadísticamente significativas en ${varCuantitativa} entre los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}); el tamaño del efecto es ${ef.interpretacion} (d de Cohen = ${ef.d.toFixed(2)}). Un resultado no significativo no demuestra la igualdad: podría deberse a un tamaño muestral insuficiente.`;
+}
+
 function mostrarDispersion(var1, var2, resultado) {
     const container = document.getElementById('resultadosDispersion');
     if (!container) return;
@@ -1088,7 +1225,8 @@ function descargarResultados() {
         ['PRUEBA DE HIPÓTESIS', textoContenedor('resultadosDecision')],
         ['REPORTE EN FORMATO APA', textoContenedor('resultadosReporteAPA')],
         ['ANÁLISIS POR DIMENSIONES', textoContenedor('resultadosDimensiones')],
-        ['DISCUSIÓN (PLANTILLA)', textoContenedor('resultadosDiscusion')]
+        ['DISCUSIÓN (PLANTILLA)', textoContenedor('resultadosDiscusion')],
+        ['COMPARACIÓN DE GRUPOS', textoContenedor('resultadosComparacion')]
     ].filter(([, texto]) => texto);
 
     // Evitar descargar un archivo vacío si aún no se ejecutó el análisis
