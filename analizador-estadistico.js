@@ -131,9 +131,17 @@ class AnalizadorEstadisticoProfesional {
             const fila = {};
             encabezados.forEach((encabezado, idx) => {
                 const valor = valores[idx].trim();
-                fila[encabezado] = isNaN(valor) ? valor : parseFloat(valor);
+                const numero = parseFloat(valor);
+                // Se almacena como número solo si el valor es realmente numérico;
+                // la comprobación se hace sobre el resultado de parseFloat para
+                // que coincida con la conversión (un '' o un texto queda como string).
+                fila[encabezado] = isNaN(numero) ? valor : numero;
             });
             datos.push(fila);
+        }
+
+        if (datos.length === 0) {
+            throw new Error('Ninguna fila coincide con el número de columnas del encabezado; revisa el delimitador o el formato del CSV');
         }
 
         return this.cargarDatos(datos);
