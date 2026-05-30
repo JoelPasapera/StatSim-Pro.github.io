@@ -912,12 +912,12 @@ function agregarFilaPruebaConDatos(datos) {
     nuevaFila.className = 'fila-prueba';
 
     nuevaFila.innerHTML = `
-        <td><input type="text" class="input input-sm" placeholder="Ej: WAIS-IV" maxlength="100" value="${datos.nombre}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 60" min="1" value="${datos.numItems}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 100" step="0.01" value="${datos.media}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 15" step="0.01" min="0.01" value="${datos.de}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 0" step="1" value="${datos.min}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 5" step="1" value="${datos.max}"></td>
+        <td><input type="text" class="input input-sm" placeholder="Ej: WAIS-IV" maxlength="100" value="${datos.nombre}" aria-label="Nombre de la prueba"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 60" min="1" value="${datos.numItems}" aria-label="Número de ítems"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 100" step="0.01" value="${datos.media}" aria-label="Media (M)"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 15" step="0.01" min="0.01" value="${datos.de}" aria-label="Desviación estándar (DE)"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 0" step="1" value="${datos.min}" aria-label="Mínimo por ítem"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 5" step="1" value="${datos.max}" aria-label="Máximo por ítem"></td>
         <td>
             <button type="button" class="btn-icon btn-delete" title="Eliminar" aria-label="Eliminar fila">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -1032,12 +1032,12 @@ function agregarFilaSocioConDatos(datos) {
     nuevaFila.className = 'fila-socio';
 
     nuevaFila.innerHTML = `
-        <td><input type="text" class="input input-sm" placeholder="Ej: Edad" value="${datos.categoria}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 20" step="0.01" value="${datos.promedio}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 2.5" step="0.01" min="0.01" value="${datos.de}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 15" step="0.01" value="${datos.min}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 25" step="0.01" value="${datos.max}"></td>
-        <td><input type="number" class="input input-sm" placeholder="Ej: 2" min="0" max="4" value="${datos.decimales}"></td>
+        <td><input type="text" class="input input-sm" placeholder="Ej: Edad" value="${datos.categoria}" aria-label="Categoría"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 20" step="0.01" value="${datos.promedio}" aria-label="Promedio"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 2.5" step="0.01" min="0.01" value="${datos.de}" aria-label="Desviación estándar"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 15" step="0.01" value="${datos.min}" aria-label="Mínimo"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 25" step="0.01" value="${datos.max}" aria-label="Máximo"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 2" min="0" max="4" value="${datos.decimales}" aria-label="Número de decimales"></td>
         <td>
             <button type="button" class="btn-icon btn-delete" title="Eliminar" aria-label="Eliminar fila">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
