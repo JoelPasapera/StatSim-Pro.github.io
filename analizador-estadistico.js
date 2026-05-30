@@ -807,7 +807,10 @@ class AnalizadorEstadisticoProfesional {
 
     generarDiscusion(var1, var2, resultadoCorrelacion, unidadAnalisis, lugarContexto) {
         const marco = this.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
-        const prueba = this.pruebaHipotesis(resultadoCorrelacion, unidadAnalisis, lugarContexto);
+        // alpha debe omitirse aquí para que use el nivel de significancia configurado.
+        // NO pasar unidadAnalisis/lugarContexto: el 2º parámetro es alpha y un string
+        // rompería la comparación p < alpha (siempre daría "no rechazar").
+        const prueba = this.pruebaHipotesis(resultadoCorrelacion);
         const config = this.configuracionInvestigacion;
 
         let contexto = '';
@@ -923,7 +926,7 @@ class AnalizadorEstadisticoProfesional {
         let reporte = {
             marcoMetodologico: marco,
             resultadosEstadisticos: resultadoCorrelacion,
-            pruebaHipotesis: this.pruebaHipotesis(resultadoCorrelacion, unidadAnalisis, lugarContexto),
+            pruebaHipotesis: this.pruebaHipotesis(resultadoCorrelacion),
             discusion: discusion
         };
 
