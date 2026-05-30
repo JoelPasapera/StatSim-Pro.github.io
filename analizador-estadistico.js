@@ -348,14 +348,20 @@ class AnalizadorEstadisticoProfesional {
 
     pruebaDeNormalidad(nombreColumna) {
         const valores = this.obtenerValoresNumericos(nombreColumna);
-        const n = valores.length;
+        return this.evaluarNormalidad(valores);
+    }
 
-        let resultado = {};
+    // Evalúa el supuesto de normalidad sobre un arreglo de valores numéricos.
+    // Selección de prueba según N (Shapiro-Wilk si n < 50, Kolmogorov-Smirnov
+    // si n ≥ 50): convención intencional, no modificar.
+    evaluarNormalidad(valores) {
+        const n = valores.length;
 
         if (n < 3) {
             throw new Error('Se necesitan al menos 3 observaciones para la prueba de normalidad');
         }
 
+        let resultado;
         if (n < 50) {
             resultado = this.shapiroWilk(valores);
             resultado.prueba = 'Shapiro-Wilk';
@@ -471,19 +477,22 @@ class AnalizadorEstadisticoProfesional {
     // ========================================
 
     calcularCorrelacion(nombreColumna1, nombreColumna2, tipoPrueba = 'bilateral') {
-        const valores1 = this.obtenerValoresNumericos(nombreColumna1);
-        const valores2 = this.obtenerValoresNumericos(nombreColumna2);
+        // Eliminación por casos: conservar solo las filas con valor numérico en
+        // AMBAS columnas, para no desalinear los pares (un NaN en una sola
+        // variable desplazaría todos los pares siguientes).
+        const pares = (this.datos || [])
+            .map(fila => [parseFloat(fila[nombreColumna1]), parseFloat(fila[nombreColumna2])])
+            .filter(([a, b]) => isFinite(a) && isFinite(b));
 
-        if (valores1.length !== valores2.length) {
-            throw new Error('Las columnas deben tener el mismo número de valores');
+        if (pares.length < 3) {
+            throw new Error('Se necesitan al menos 3 pares de valores válidos');
         }
 
-        if (valores1.length < 3) {
-            throw new Error('Se necesitan al menos 3 pares de valores');
-        }
+        const valores1 = pares.map(par => par[0]);
+        const valores2 = pares.map(par => par[1]);
 
-        const normalidad1 = this.pruebaDeNormalidad(nombreColumna1);
-        const normalidad2 = this.pruebaDeNormalidad(nombreColumna2);
+        const normalidad1 = this.evaluarNormalidad(valores1);
+        const normalidad2 = this.evaluarNormalidad(valores2);
 
         let resultado = {};
 
@@ -751,25 +760,7 @@ class AnalizadorEstadisticoProfesional {
      * Prueba de normalidad para un array de valores
      */
     pruebaDeNormalidadArray(valores) {
-        const n = valores.length;
-
-        if (n < 3) {
-            throw new Error('Se necesitan al menos 3 observaciones');
-        }
-
-        let resultado;
-        if (n < 50) {
-            resultado = this.shapiroWilk(valores);
-            resultado.prueba = 'Shapiro-Wilk';
-        } else {
-            resultado = this.kolmogorovSmirnov(valores);
-            resultado.prueba = 'Kolmogorov-Smirnov';
-        }
-
-        resultado.n = n;
-        resultado.normal = resultado.pValor > 0.05;
-
-        return resultado;
+        return this.evaluarNormalidad(valores);
     }
 
     // ========================================
