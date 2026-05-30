@@ -325,11 +325,16 @@ class ScientificCharts {
             options.yLabel || ''
         );
 
-        // Desplazar la matriz hacia abajo para que las etiquetas de columna
-        // (en y = -10) no se solapen con el título superior del gráfico.
+        // Desplazar la matriz para que las etiquetas de columna (en y = -10) no
+        // se solapen con el título superior y, sobre todo, para que las
+        // etiquetas de fila (en x = -10, ancladas a la derecha) no se recorten
+        // por el borde izquierdo. Se reserva espacio a la izquierda según la
+        // holgura horizontal disponible (sin que la matriz se salga a la derecha).
+        const anchoContenido = this.config.width - this.config.margin.left - this.config.margin.right;
         const desplazamientoSuperior = this.config.fontSize + 8;
+        const desplazamientoIzquierdo = Math.min(Math.max(anchoContenido - width, 0), 80);
         const gMatriz = g.append('g')
-            .attr('transform', `translate(0, ${desplazamientoSuperior})`);
+            .attr('transform', `translate(${desplazamientoIzquierdo}, ${desplazamientoSuperior})`);
 
         // Crear celdas del heatmap
         const cells = gMatriz.selectAll('.cell')
