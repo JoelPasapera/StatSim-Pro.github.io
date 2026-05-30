@@ -729,19 +729,7 @@ Generado por StatSim Pro
 Fecha: ${new Date().toLocaleDateString()}
 `;
 
-    const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8;' });
-    const link = document.createElement('a');
-
-    if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'resultados_analisis.txt');
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
+    descargarArchivo(contenido, 'resultados_analisis.txt', 'text/plain');
     mostrarToast('Resultados descargados', 'success');
 }
 
