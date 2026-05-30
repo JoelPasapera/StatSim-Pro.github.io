@@ -157,7 +157,7 @@
                                         <input type="number" class="input input-sm" placeholder="Ej: 5" step="1">
                                     </td>
                                     <td>
-                                        <button class="btn-icon btn-delete" title="Eliminar">
+                                        <button type="button" class="btn-icon btn-delete" title="Eliminar" aria-label="Eliminar fila">
                                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                                                 <path
                                                     d="M3 4H13M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M6 7V11M10 7V11M4 4H12L11.5 13C11.5 13.5523 11.0523 14 10.5 14H5.5C4.94772 14 4.5 13.5523 4.5 13L4 4Z"
@@ -242,7 +242,7 @@
                                             value="2">
                                     </td>
                                     <td>
-                                        <button class="btn-icon btn-delete" title="Eliminar">
+                                        <button type="button" class="btn-icon btn-delete" title="Eliminar" aria-label="Eliminar fila">
                                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                                                 <path
                                                     d="M3 4H13M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M6 7V11M10 7V11M4 4H12L11.5 13C11.5 13.5523 11.0523 14 10.5 14H5.5C4.94772 14 4.5 13.5523 4.5 13L4 4Z"
@@ -619,7 +619,7 @@
     </footer>
 
     <!-- Toast para notificaciones -->
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <!-- Inputs ocultos para importar CSV -->
     <input type="file" id="importPruebasInput" accept=".csv" style="display: none;">
