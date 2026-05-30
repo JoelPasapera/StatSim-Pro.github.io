@@ -747,6 +747,179 @@ class AnalizadorEstadisticoProfesional {
         };
     }
 
+    // ========================================
+    // COMPARACIÓN DE GRUPOS (PRUEBA t / MANN-WHITNEY)
+    // ========================================
+
+    // p-valor de cola superior de la distribución F con df1, df2 grados de
+    // libertad: P(F > f) = I_{df2/(df2+df1·f)}(df2/2, df1/2).
+    calcularPValorF(f, df1, df2) {
+        if (f <= 0) return 1;
+        return this.betaIncompleta(df2 / (df2 + df1 * f), df2 / 2, df1 / 2);
+    }
+
+    /**
+     * Prueba de Levene (variante de Brown-Forsythe, basada en la mediana, más
+     * robusta ante no normalidad) para la igualdad de varianzas de dos grupos.
+     */
+    pruebaLevene(grupo1, grupo2) {
+        const grupos = [grupo1, grupo2];
+        const k = grupos.length;
+        const N = grupo1.length + grupo2.length;
+
+        // z_ij = |x_ij − mediana_i|
+        const z = grupos.map(g => {
+            const mediana = this.calcularDescriptivas(g).mediana;
+            return g.map(v => Math.abs(v - mediana));
+        });
+
+        const promedio = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+        const mediasGrupo = z.map(promedio);
+        const granMedia = promedio(z.flat());
+
+        let entre = 0;
+        let dentro = 0;
+        z.forEach((zi, i) => {
+            entre += zi.length * Math.pow(mediasGrupo[i] - granMedia, 2);
+            zi.forEach(v => { dentro += Math.pow(v - mediasGrupo[i], 2); });
+        });
+
+        const df1 = k - 1;
+        const df2 = N - k;
+        const F = dentro > 0 ? ((N - k) / (k - 1)) * (entre / dentro) : 0;
+
+        return {
+            estadistico: F,
+            df1: df1,
+            df2: df2,
+            pValor: this.calcularPValorF(F, df1, df2),
+            varianzasIguales: this.calcularPValorF(F, df1, df2) > 0.05
+        };
+    }
+
+    // Prueba t de Student para muestras independientes (varianzas iguales).
+    pruebaTStudent(grupo1, grupo2) {
+        const n1 = grupo1.length, n2 = grupo2.length;
+        const d1 = this.calcularDescriptivas(grupo1), d2 = this.calcularDescriptivas(grupo2);
+        const sp = Math.sqrt(((n1 - 1) * d1.varianza + (n2 - 1) * d2.varianza) / (n1 + n2 - 2));
+        const errorEstandar = sp * Math.sqrt(1 / n1 + 1 / n2);
+        const t = errorEstandar > 0 ? (d1.media - d2.media) / errorEstandar : 0;
+        const gl = n1 + n2 - 2;
+        return { prueba: 't de Student', estadistico: t, gl: gl, pValor: this.calcularPValorT(Math.abs(t), gl) };
+    }
+
+    // Prueba t de Welch (no asume varianzas iguales; gl de Welch-Satterthwaite).
+    pruebaTWelch(grupo1, grupo2) {
+        const n1 = grupo1.length, n2 = grupo2.length;
+        const d1 = this.calcularDescriptivas(grupo1), d2 = this.calcularDescriptivas(grupo2);
+        const v1 = d1.varianza / n1, v2 = d2.varianza / n2;
+        const errorEstandar = Math.sqrt(v1 + v2);
+        const t = errorEstandar > 0 ? (d1.media - d2.media) / errorEstandar : 0;
+        const gl = (v1 + v2) * (v1 + v2) / ((v1 * v1) / (n1 - 1) + (v2 * v2) / (n2 - 1));
+        return { prueba: 't de Welch', estadistico: t, gl: gl, pValor: this.calcularPValorT(Math.abs(t), gl) };
+    }
+
+    /**
+     * Prueba U de Mann-Whitney (no paramétrica) con aproximación normal y
+     * corrección por empates.
+     */
+    pruebaMannWhitney(grupo1, grupo2) {
+        const n1 = grupo1.length, n2 = grupo2.length;
+        const N = n1 + n2;
+
+        // Rangos del conjunto combinado (promedio en empates)
+        const combinado = grupo1.map(v => ({ v, g: 1 })).concat(grupo2.map(v => ({ v, g: 2 })));
+        combinado.sort((a, b) => a.v - b.v);
+
+        const rangos = new Array(N);
+        const tamanosEmpate = [];
+        let i = 0;
+        while (i < N) {
+            let j = i;
+            while (j < N && combinado[j].v === combinado[i].v) j++;
+            const rangoPromedio = (i + 1 + j) / 2;
+            for (let r = i; r < j; r++) rangos[r] = rangoPromedio;
+            tamanosEmpate.push(j - i);
+            i = j;
+        }
+
+        let R1 = 0;
+        for (let r = 0; r < N; r++) if (combinado[r].g === 1) R1 += rangos[r];
+
+        const U1 = R1 - n1 * (n1 + 1) / 2;
+        const U = Math.min(U1, n1 * n2 - U1);
+
+        const muU = n1 * n2 / 2;
+        const sumaEmpates = tamanosEmpate.reduce((a, t) => a + (t * t * t - t), 0);
+        const sigmaU = Math.sqrt((n1 * n2 / 12) * ((N + 1) - sumaEmpates / (N * (N - 1))));
+        const z = sigmaU > 0 ? (U - muU) / sigmaU : 0;
+        const pValor = Math.min(1, 2 * (1 - this.distribucionNormalAcumulada(Math.abs(z))));
+
+        return { prueba: 'U de Mann-Whitney', U: U, z: z, pValor: pValor };
+    }
+
+    // Tamaño del efecto d de Cohen (con desviación estándar combinada).
+    calcularCohenD(grupo1, grupo2) {
+        const n1 = grupo1.length, n2 = grupo2.length;
+        const d1 = this.calcularDescriptivas(grupo1), d2 = this.calcularDescriptivas(grupo2);
+        const sp = Math.sqrt(((n1 - 1) * d1.varianza + (n2 - 1) * d2.varianza) / (n1 + n2 - 2));
+        const d = sp > 0 ? (d1.media - d2.media) / sp : 0;
+        return { d: d, interpretacion: this.interpretarCohenD(d) };
+    }
+
+    // Bandas del d de Cohen (1988).
+    interpretarCohenD(d) {
+        const ad = Math.abs(d);
+        if (ad < 0.2) return 'trivial';
+        if (ad < 0.5) return 'pequeño';
+        if (ad < 0.8) return 'mediano';
+        return 'grande';
+    }
+
+    /**
+     * Compara dos grupos en una variable cuantitativa eligiendo la prueba según
+     * los supuestos: si ambos grupos son normales, t de Student (Levene no
+     * significativo) o t de Welch (Levene significativo); en caso contrario, U
+     * de Mann-Whitney. Devuelve descriptivos por grupo, normalidad, Levene, la
+     * prueba aplicada, el tamaño del efecto (d de Cohen) y la decisión.
+     */
+    compararGrupos(grupo1, grupo2, etiqueta1, etiqueta2) {
+        if (grupo1.length < 3 || grupo2.length < 3) {
+            throw new Error('Cada grupo necesita al menos 3 observaciones');
+        }
+
+        const normalidad1 = this.evaluarNormalidad(grupo1);
+        const normalidad2 = this.evaluarNormalidad(grupo2);
+        const levene = this.pruebaLevene(grupo1, grupo2);
+
+        let prueba, parametrica;
+        if (normalidad1.normal && normalidad2.normal) {
+            parametrica = true;
+            prueba = levene.varianzasIguales
+                ? this.pruebaTStudent(grupo1, grupo2)
+                : this.pruebaTWelch(grupo1, grupo2);
+        } else {
+            parametrica = false;
+            prueba = this.pruebaMannWhitney(grupo1, grupo2);
+        }
+
+        const alpha = this.configuracionInvestigacion.nivelSignificancia;
+        return {
+            etiqueta1: etiqueta1,
+            etiqueta2: etiqueta2,
+            descriptivas1: this.calcularDescriptivas(grupo1),
+            descriptivas2: this.calcularDescriptivas(grupo2),
+            normalidad1: normalidad1,
+            normalidad2: normalidad2,
+            levene: levene,
+            prueba: prueba,
+            parametrica: parametrica,
+            tamanoEfecto: this.calcularCohenD(grupo1, grupo2),
+            alpha: alpha,
+            decision: prueba.pValor < alpha ? 'rechazar' : 'no_rechazar'
+        };
+    }
+
     correlacionPearson(valores1, valores2, tipoPrueba) {
         const n = valores1.length;
 
