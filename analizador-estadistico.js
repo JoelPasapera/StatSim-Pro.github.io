@@ -915,7 +915,9 @@ class AnalizadorEstadisticoProfesional {
             parametrica: parametrica,
             tamanoEfecto: this.calcularCohenD(grupo1, grupo2),
             alpha: alpha,
-            decision: prueba.pValor < alpha ? 'rechazar' : 'no_rechazar'
+            decision: prueba.pValor < alpha ? 'rechazar' : 'no_rechazar',
+            etiquetas: [etiqueta1, etiqueta2],
+            gruposDatos: [grupo1, grupo2]
         };
     }
 
@@ -1110,7 +1112,8 @@ class AnalizadorEstadisticoProfesional {
             prueba: prueba,
             parametrica: parametrica,
             decision: decision,
-            postHoc: postHoc
+            postHoc: postHoc,
+            gruposDatos: grupos
         };
     }
 

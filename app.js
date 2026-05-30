@@ -915,6 +915,10 @@ function mostrarComparacion(varCuantitativa, varAgrupacion, resultado) {
                 </table>
             </div>
 
+            <div class="result-box" style="display: flex; justify-content: center;">
+                <div id="cajaGrupos"></div>
+            </div>
+
             <div class="result-box interpretation-box interpretation-box--hipotesis">
                 <h5 class="interpretation-title">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/></svg>
@@ -924,7 +928,27 @@ function mostrarComparacion(varCuantitativa, varAgrupacion, resultado) {
             </div>
         </div>`;
     container.style.display = 'block';
+    dibujarCajaGrupos(resultado);
     desplazarHacia(container);
+}
+
+// Dibuja un diagrama de caja por grupo en el contenedor #cajaGrupos usando los
+// datos crudos de cada grupo expuestos en el resultado de la comparación.
+function dibujarCajaGrupos(resultado) {
+    if (!document.getElementById('cajaGrupos') || !Array.isArray(resultado.gruposDatos)) return;
+
+    // Etiquetas cortas para el eje (solo el valor del grupo, sin el prefijo)
+    const etiquetas = resultado.etiquetas.map(e => e.split('=').pop().trim());
+
+    try {
+        new ScientificCharts('cajaGrupos', { width: 520, height: 360, primaryColor: '#2E5BBA' })
+            .createBoxPlot(resultado.gruposDatos, etiquetas, {
+                title: 'Distribución por grupo',
+                yLabel: 'Valor'
+            });
+    } catch (error) {
+        console.error('Error al crear el diagrama de caja por grupo:', error);
+    }
 }
 
 // Muestra el reporte de comparación de 3 o más grupos (ANOVA / Kruskal-Wallis).
@@ -993,6 +1017,10 @@ function mostrarComparacionVarios(varCuantitativa, varAgrupacion, resultado) {
 
             ${postHocHtml}
 
+            <div class="result-box" style="display: flex; justify-content: center;">
+                <div id="cajaGrupos"></div>
+            </div>
+
             <div class="result-box interpretation-box interpretation-box--hipotesis">
                 <h5 class="interpretation-title">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/></svg>
@@ -1002,6 +1030,7 @@ function mostrarComparacionVarios(varCuantitativa, varAgrupacion, resultado) {
             </div>
         </div>`;
     container.style.display = 'block';
+    dibujarCajaGrupos(resultado);
     desplazarHacia(container);
 }
 
