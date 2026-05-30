@@ -603,6 +603,22 @@ label {
     font-size: 0.9375rem;
 }
 
+/* Caja del reporte en formato APA: texto citable + botón de copiar. */
+.apa-box {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.apa-text {
+    margin: 0;
+    flex: 1;
+    min-width: 240px;
+    font-style: italic;
+    line-height: 1.7;
+}
+
 /* Las referencias incluyen URLs muy largas; se permite que corten para que
    no desborden el ancho de la página en pantallas estrechas. */
 .reference-text {

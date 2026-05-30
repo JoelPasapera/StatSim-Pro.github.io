@@ -394,9 +394,11 @@ function ejecutarAnalisis() {
 
             // Generar todas las secciones dinámicamente
             mostrarMarcoMetodologico(marco);
+            mostrarDescriptivas(var1, var2, resultado);
             mostrarPruebasNormalidad(var1, var2, resultado);
             mostrarCorrelacion(var1, var2, resultado);
             mostrarDecision(var1, var2, resultado);
+            mostrarReporteAPA(var1, var2, resultado);
             mostrarDimensionesSiAplica(var1, var2, tipoPrueba);
             mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto);
 
@@ -573,6 +575,16 @@ function mostrarCorrelacion(var1, var2, resultado) {
                         <td><strong>${resultado.pValor.toFixed(4)}</strong></td>
                     </tr>
                     <tr>
+                        <td>IC 95% del coeficiente:</td>
+                        <td>${resultado.intervaloConfianza ?
+            `[${resultado.intervaloConfianza.inferior.toFixed(3)}, ${resultado.intervaloConfianza.superior.toFixed(3)}]` :
+            'No disponible (N ≤ 3)'}</td>
+                    </tr>
+                    <tr>
+                        <td>Tamaño del efecto (r²):</td>
+                        <td><strong>${(resultado.r2 * 100).toFixed(1)}%</strong> de varianza compartida</td>
+                    </tr>
+                    <tr>
                         <td>Interpretación:</td>
                         <td><strong>${resultado.interpretacion.texto}</strong></td>
                     </tr>
@@ -679,6 +691,106 @@ function mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto) 
     container.style.display = 'block';
 }
 
+function mostrarDescriptivas(var1, var2, resultado) {
+    const container = document.getElementById('resultadosDescriptivas');
+    if (!container) return;
+
+    const d1 = resultado.descriptivas1;
+    const d2 = resultado.descriptivas2;
+
+    // Fila de la tabla; `decimales` controla el formato de los valores numéricos.
+    const fila = (etiqueta, v1, v2, decimales = 2) => `
+        <tr>
+            <td>${etiqueta}</td>
+            <td>${typeof v1 === 'number' ? v1.toFixed(decimales) : v1}</td>
+            <td>${typeof v2 === 'number' ? v2.toFixed(decimales) : v2}</td>
+        </tr>`;
+
+    container.innerHTML = `
+        <div class="result-section">
+            <h3 class="section-title">Estadísticos Descriptivos</h3>
+            <p class="result-subtitle">Resumen numérico de cada variable, base para interpretar la correlación. La asimetría y la curtosis describen la forma de la distribución: valores próximos a 0 sugieren simetría y una forma mesocúrtica (cercana a la normal).</p>
+            <div class="result-box">
+                <table class="result-table">
+                    <tr><th>Estadístico</th><th>${var1}</th><th>${var2}</th></tr>
+                    ${fila('N', d1.n, d2.n, 0)}
+                    ${fila('Media (M)', d1.media, d2.media)}
+                    ${fila('Desviación estándar (DE)', d1.desviacion, d2.desviacion)}
+                    ${fila('Error estándar', d1.errorEstandar, d2.errorEstandar)}
+                    ${fila('Mínimo', d1.min, d2.min)}
+                    ${fila('Máximo', d1.max, d2.max)}
+                    ${fila('Mediana', d1.mediana, d2.mediana)}
+                    ${fila('Q1 / Q3', `${d1.q1.toFixed(2)} / ${d1.q3.toFixed(2)}`, `${d2.q1.toFixed(2)} / ${d2.q3.toFixed(2)}`)}
+                    ${fila('Asimetría', d1.asimetria, d2.asimetria)}
+                    ${fila('Curtosis', d1.curtosis, d2.curtosis)}
+                </table>
+            </div>
+        </div>`;
+    container.style.display = 'block';
+}
+
+// Formatea un coeficiente al estilo APA: sin cero a la izquierda y 2 decimales.
+function formatearRApa(r) {
+    if (typeof r !== 'number' || isNaN(r)) return '—';
+    const signo = r < 0 ? '-' : '';
+    return signo + Math.abs(r).toFixed(2).replace(/^0/, '');
+}
+
+// Formatea el p-valor al estilo APA (p < .001 para valores muy pequeños).
+function formatearPApa(p) {
+    if (typeof p !== 'number' || isNaN(p)) return 'p = —';
+    if (p < 0.001) return 'p < .001';
+    return 'p = ' + p.toFixed(3).replace(/^0/, '');
+}
+
+// Construye la frase de resultados en formato APA 7.
+function construirLineaAPA(var1, var2, resultado) {
+    const simbolo = resultado.tipoCorrelacion === 'Pearson' ? 'r' : 'rₛ';
+    const ic = resultado.intervaloConfianza;
+    const icTexto = ic
+        ? `, IC 95% [${formatearRApa(ic.inferior)}, ${formatearRApa(ic.superior)}]`
+        : '';
+    const significativa = resultado.pValor < 0.05;
+    const relacion = significativa
+        ? `una correlación ${resultado.interpretacion.direccion} estadísticamente significativa`
+        : `una correlación ${resultado.interpretacion.direccion} no significativa`;
+    return `Se halló ${relacion} entre ${var1} y ${var2}, ${simbolo}(${resultado.gl}) = ${formatearRApa(resultado.coeficiente)}, ${formatearPApa(resultado.pValor)}${icTexto}; r² = ${formatearRApa(resultado.r2)}.`;
+}
+
+function mostrarReporteAPA(var1, var2, resultado) {
+    const container = document.getElementById('resultadosReporteAPA');
+    if (!container) return;
+
+    const linea = construirLineaAPA(var1, var2, resultado);
+
+    container.innerHTML = `
+        <div class="result-section">
+            <h3 class="section-title">Reporte en formato APA</h3>
+            <p class="result-subtitle">Frase lista para pegar en la sección de resultados de tu tesis o artículo (estilo APA 7).</p>
+            <div class="result-box apa-box">
+                <p id="apaTexto" class="apa-text">${linea}</p>
+                <button type="button" id="btnCopiarAPA" class="btn btn-outline">Copiar</button>
+            </div>
+        </div>`;
+    container.style.display = 'block';
+
+    const btn = document.getElementById('btnCopiarAPA');
+    if (btn) {
+        btn.addEventListener('click', () => copiarTexto(linea));
+    }
+}
+
+// Copia un texto al portapapeles y avisa por toast.
+function copiarTexto(texto) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto)
+            .then(() => mostrarToast('Reporte copiado al portapapeles', 'success'))
+            .catch(() => mostrarToast('No se pudo copiar el reporte', 'error'));
+    } else {
+        mostrarToast('El navegador no permite copiar automáticamente', 'warning');
+    }
+}
+
 // Análisis por dimensiones: solo se ejecuta si el usuario configuró
 // dimensiones para AMBAS variables. Es opcional y no debe interrumpir el
 // análisis principal, por lo que cualquier error se reporta por toast.
@@ -781,34 +893,32 @@ function descargarResultados() {
         return elem ? elem.innerText.trim() : '';
     };
 
-    // El contenedor de normalidad es 'pruebasNormalidadContainer' (no 'resultadosNormalidad')
-    const normalidad = textoContenedor('pruebasNormalidadContainer');
-    const correlacion = textoContenedor('resultadosCorrelacion');
-    const decision = textoContenedor('resultadosDecision');
-    const dimensiones = textoContenedor('resultadosDimensiones');
-    const discusion = textoContenedor('resultadosDiscusion');
+    // El contenedor de normalidad es 'pruebasNormalidadContainer' (no 'resultadosNormalidad').
+    // Las secciones opcionales (descriptivos, APA, dimensiones) se filtran si están vacías.
+    const secciones = [
+        ['ESTADÍSTICOS DESCRIPTIVOS', textoContenedor('resultadosDescriptivas')],
+        ['PRUEBA DE NORMALIDAD', textoContenedor('pruebasNormalidadContainer')],
+        ['ANÁLISIS DE CORRELACIÓN', textoContenedor('resultadosCorrelacion')],
+        ['PRUEBA DE HIPÓTESIS', textoContenedor('resultadosDecision')],
+        ['REPORTE EN FORMATO APA', textoContenedor('resultadosReporteAPA')],
+        ['ANÁLISIS POR DIMENSIONES', textoContenedor('resultadosDimensiones')],
+        ['DISCUSIÓN (PLANTILLA)', textoContenedor('resultadosDiscusion')]
+    ].filter(([, texto]) => texto);
 
     // Evitar descargar un archivo vacío si aún no se ejecutó el análisis
-    if (!correlacion && !normalidad && !decision && !discusion) {
+    if (secciones.length === 0) {
         mostrarToast('Primero ejecuta un análisis para descargar resultados', 'warning');
         return;
     }
 
-    const contenido = `
-RESULTADOS DEL ANÁLISIS ESTADÍSTICO
+    const cuerpo = secciones
+        .map(([titulo, texto], i) => `${i + 1}. ${titulo}\n${texto}`)
+        .join('\n\n');
+
+    const contenido = `RESULTADOS DEL ANÁLISIS ESTADÍSTICO
 ====================================
 
-1. PRUEBA DE NORMALIDAD
-${normalidad}
-
-2. ANÁLISIS DE CORRELACIÓN
-${correlacion}
-
-3. PRUEBA DE HIPÓTESIS
-${decision}
-${dimensiones ? `\n4. ANÁLISIS POR DIMENSIONES\n${dimensiones}\n` : ''}
-${dimensiones ? '5' : '4'}. DISCUSIÓN (PLANTILLA)
-${discusion}
+${cuerpo}
 
 ----
 Generado por StatSim Pro
