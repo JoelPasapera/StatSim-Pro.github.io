@@ -10,8 +10,34 @@ class GeneradorDatos {
         this.datosGenerados = null;
         this.configuracion = {
             tamanoMuestra: 100,
+            semilla: null,
             pruebas: [],
             sociodemograficos: []
+        };
+        // Fuente de números aleatorios (reemplazable por un PRNG sembrado)
+        this.aleatorio = Math.random;
+    }
+
+    // ========================================
+    // ALEATORIEDAD (REPRODUCIBLE CON SEMILLA)
+    // ========================================
+
+    // Inicializa la fuente de aleatoriedad. Con una semilla numérica usa un
+    // PRNG determinista (Mulberry32): la misma semilla produce el mismo
+    // conjunto de datos. Sin semilla, usa Math.random.
+    inicializarAleatorio(semilla) {
+        if (semilla === null || semilla === undefined || isNaN(semilla)) {
+            this.aleatorio = Math.random;
+            return;
+        }
+
+        let estado = Math.trunc(semilla) >>> 0;
+        this.aleatorio = function () {
+            estado = (estado + 0x6D2B79F5) >>> 0;
+            let t = estado;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
         };
     }
 
@@ -31,6 +57,10 @@ class GeneradorDatos {
             throw new Error(`El tamaño muestral máximo permitido es ${TAMANO_MUESTRAL_MAXIMO}`);
         }
         this.configuracion.tamanoMuestra = tamano;
+
+        // Semilla opcional para reproducibilidad
+        const semillaTexto = document.getElementById('semilla').value.trim();
+        this.configuracion.semilla = semillaTexto === '' ? null : parseInt(semillaTexto, 10);
 
         // Pruebas aplicadas
         this.configuracion.pruebas = this.recolectarPruebas();
@@ -176,6 +206,9 @@ class GeneradorDatos {
     // ========================================
 
     generarBaseDatos() {
+        // Inicializar la fuente de aleatoriedad (sembrada si hay semilla)
+        this.inicializarAleatorio(this.configuracion.semilla);
+
         const n = this.configuracion.tamanoMuestra;
         const datos = [];
 
@@ -269,18 +302,17 @@ class GeneradorDatos {
         };
     }
 
+    // Valor normal estándar N(0,1) por el método de Box-Muller.
+    generarNormalEstandar() {
+        let u1 = this.aleatorio();
+        let u2 = this.aleatorio();
+        while (u1 === 0) u1 = this.aleatorio(); // Evitar log(0)
+        return Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+    }
+
     generarValorNormal(media, desviacion) {
-        // Método Box-Muller para generar valores con distribución normal
-        let u1 = Math.random();
-        let u2 = Math.random();
-        
-        // Evitar log(0)
-        while (u1 === 0) u1 = Math.random();
-        
-        const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-        const valor = media + desviacion * z0;
-        
-        return valor; // NO redondear aquí, se redondeará después según el contexto
+        // NO redondear aquí, se redondeará después según el contexto
+        return media + desviacion * this.generarNormalEstandar();
     }
 
     // ========================================
@@ -346,6 +378,7 @@ class GeneradorDatos {
         this.datosGenerados = null;
         this.configuracion = {
             tamanoMuestra: 100,
+            semilla: null,
             pruebas: [],
             sociodemograficos: []
         };
