@@ -155,20 +155,15 @@ function generarBaseDatos() {
         // Generar datos
         mostrarToast('Generando base de datos...', 'success');
 
-
-
         setTimeout(() => {
             const datos = generadorDatos.generarBaseDatos();
             // Almacenar datos generados globalmente para los gráficos
             window.datosGenerados = datos;
-            console.log("Datos generados:", datos);
             mostrarPreview(datos);
             habilitarDescargaCSV();
             habilitarUsarGenerados();
             mostrarToast('¡Base de datos generada exitosamente!', 'success');
         }, 300);
-
-        window.datosGenerados = baseDatos;
 
     } catch (error) {
         mostrarToast(error.message, 'error');
