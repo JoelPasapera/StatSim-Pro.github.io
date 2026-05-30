@@ -400,7 +400,7 @@ class AnalizadorEstadisticoProfesional {
             resultado.razon = 'n < 50';
         } else {
             resultado = this.kolmogorovSmirnov(valores);
-            resultado.prueba = 'Kolmogorov-Smirnov';
+            resultado.prueba = 'Kolmogorov-Smirnov (Lilliefors)';
             resultado.razon = 'n ≥ 50';
         }
 
@@ -577,16 +577,50 @@ class AnalizadorEstadisticoProfesional {
         };
     }
 
+    /**
+     * p-valor del test de normalidad de Kolmogorov-Smirnov con parámetros
+     * estimados de la muestra (= test de Lilliefors). La distribución estándar
+     * de Kolmogorov es demasiado conservadora al estimar la media y la DE, por
+     * lo que se usa la aproximación de Dallal-Wilkinson (cola, p ≤ 0.1) y la de
+     * Khorzad (zona central), igual que nortest::lillie.test de R.
+     */
     estimarPValorKS(D, n) {
-        const lambda = (Math.sqrt(n) + 0.12 + 0.11 / Math.sqrt(n)) * D;
-
-        let suma = 0;
-        for (let k = 1; k <= 10; k++) {
-            suma += Math.pow(-1, k - 1) * Math.exp(-2 * k * k * lambda * lambda);
+        let dMod = D;
+        let nMod = n;
+        if (n > 100) {
+            dMod = D * Math.pow(n / 100, 0.49);
+            nMod = 100;
         }
 
-        const p = 2 * suma;
-        return Math.max(0.001, Math.min(0.999, p));
+        // Aproximación de Dallal-Wilkinson (precisa en la cola, p ≤ 0.1)
+        let p = Math.exp(
+            -7.01256 * dMod * dMod * (nMod + 2.78019)
+            + 2.99587 * dMod * Math.sqrt(nMod + 2.78019)
+            - 0.122119 + 0.974598 / Math.sqrt(nMod) + 1.67997 / nMod
+        );
+
+        // Para p > 0.1, aproximación polinómica de Khorzad sobre el estadístico
+        // modificado (la cola de Dallal-Wilkinson deja de ser fiable ahí).
+        if (p > 0.1) {
+            const kk = (Math.sqrt(n) - 0.01 + 0.85 / Math.sqrt(n)) * D;
+            const k2 = kk * kk;
+            const k3 = k2 * kk;
+            const k4 = k3 * kk;
+
+            if (kk <= 0.302) {
+                p = 1;
+            } else if (kk <= 0.5) {
+                p = 2.76773 - 19.828315 * kk + 80.709644 * k2 - 138.55152 * k3 + 81.218052 * k4;
+            } else if (kk <= 0.9) {
+                p = -4.901232 + 40.662806 * kk - 97.490286 * k2 + 94.029866 * k3 - 32.355711 * k4;
+            } else if (kk <= 1.31) {
+                p = 6.198765 - 19.558097 * kk + 23.186922 * k2 - 12.234627 * k3 + 2.423045 * k4;
+            } else {
+                p = 0;
+            }
+        }
+
+        return Math.max(0, Math.min(1, p));
     }
 
     distribucionNormalAcumulada(z) {
