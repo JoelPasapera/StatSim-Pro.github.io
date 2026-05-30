@@ -150,6 +150,7 @@
                                     <th>Desviación Estándar (DE)</th>
                                     <th>Mín por Ítem</th>
                                     <th>Máx por Ítem</th>
+                                    <th>α objetivo</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -177,6 +178,9 @@
                                         <input type="number" class="input input-sm" placeholder="Ej: 5" step="1" aria-label="Máximo por ítem">
                                     </td>
                                     <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 0.85" step="0.01" min="0" max="0.99" aria-label="Alfa de Cronbach objetivo">
+                                    </td>
+                                    <td>
                                         <button type="button" class="btn-icon btn-delete" title="Eliminar" aria-label="Eliminar fila">
                                             <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">
                                                 <path
@@ -191,7 +195,10 @@
                     </div>
                     <p class="help-text" style="margin-top: 0.5rem;">
                         <strong>Mín/Máx por Ítem:</strong> Define el rango de valores posibles para cada ítem individual
-                        (Ej: escala Likert 0-5, 1-7, etc.). Si se deja vacío, se estimará automáticamente.
+                        (Ej: escala Likert 0-5, 1-7, etc.). Si se deja vacío, se usa 1-7.
+                        <strong>α objetivo:</strong> consistencia interna deseada de la escala (0–0.99); con un valor
+                        (p. ej. 0.85) los ítems comparten un factor común y la escala tendrá esa fiabilidad. Vacío o 0 =
+                        ítems independientes.
                     </p>
                 </div>
 

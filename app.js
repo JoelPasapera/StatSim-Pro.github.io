@@ -1573,7 +1573,7 @@ function exportarConfigPruebas() {
         }
 
         // Crear CSV con encabezados
-        let csv = 'Nombre,NumItems,Media,DE,MinItem,MaxItem\n';
+        let csv = 'Nombre,NumItems,Media,DE,MinItem,MaxItem,Alfa\n';
 
         filas.forEach(fila => {
             const inputs = fila.querySelectorAll('input');
@@ -1583,10 +1583,11 @@ function exportarConfigPruebas() {
             const de = inputs[3].value || '';
             const min = inputs[4].value || '';
             const max = inputs[5].value || '';
+            const alfa = inputs[6] ? (inputs[6].value || '') : '';
 
             // Escapar valores con comas
             const nombreEscapado = nombre.includes(',') ? `"${nombre}"` : nombre;
-            csv += `${nombreEscapado},${numItems},${media},${de},${min},${max}\n`;
+            csv += `${nombreEscapado},${numItems},${media},${de},${min},${max},${alfa}\n`;
         });
 
         // Descargar archivo
@@ -1638,7 +1639,8 @@ function importarConfigPruebas(e) {
                         media: valores[2] || '',
                         de: valores[3] || '',
                         min: valores[4] || '',
-                        max: valores[5] || ''
+                        max: valores[5] || '',
+                        alfa: valores[6] || ''
                     });
                 }
             }
@@ -1670,6 +1672,7 @@ function agregarFilaPruebaConDatos(datos) {
         <td><input type="number" class="input input-sm" placeholder="Ej: 15" step="0.01" min="0.01" value="${datos.de}" aria-label="Desviación estándar (DE)"></td>
         <td><input type="number" class="input input-sm" placeholder="Ej: 0" step="1" value="${datos.min}" aria-label="Mínimo por ítem"></td>
         <td><input type="number" class="input input-sm" placeholder="Ej: 5" step="1" value="${datos.max}" aria-label="Máximo por ítem"></td>
+        <td><input type="number" class="input input-sm" placeholder="Ej: 0.85" step="0.01" min="0" max="0.99" value="${datos.alfa || ''}" aria-label="Alfa de Cronbach objetivo"></td>
         <td>
             <button type="button" class="btn-icon btn-delete" title="Eliminar" aria-label="Eliminar fila">
                 <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none">

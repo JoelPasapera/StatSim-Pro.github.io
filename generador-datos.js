@@ -90,6 +90,7 @@ class GeneradorDatos {
             const desviacion = parseFloat(inputs[3].value);
             const minimo = parseFloat(inputs[4].value);
             const maximo = parseFloat(inputs[5].value);
+            const alfa = inputs[6] ? parseFloat(inputs[6].value) : NaN;
 
             if (nombre && !isNaN(numItems) && !isNaN(media) && !isNaN(desviacion)) {
                 if (numItems < 1) {
@@ -98,12 +99,17 @@ class GeneradorDatos {
                 if (desviacion <= 0) {
                     throw new Error(`Prueba "${nombre}": La desviación estándar debe ser mayor a 0`);
                 }
-                
+
                 // Validar rango si se especifica
                 if (!isNaN(minimo) && !isNaN(maximo)) {
                     if (minimo >= maximo) {
                         throw new Error(`Prueba "${nombre}": El mínimo debe ser menor que el máximo`);
                     }
+                }
+
+                // Validar alfa objetivo si se especifica
+                if (!isNaN(alfa) && (alfa < 0 || alfa >= 1)) {
+                    throw new Error(`Prueba "${nombre}": El α objetivo debe estar entre 0 y 1`);
                 }
 
                 pruebas.push({
@@ -113,7 +119,8 @@ class GeneradorDatos {
                     media: media,
                     desviacion: desviacion,
                     minimo: !isNaN(minimo) ? minimo : null,
-                    maximo: !isNaN(maximo) ? maximo : null
+                    maximo: !isNaN(maximo) ? maximo : null,
+                    alfa: !isNaN(alfa) ? alfa : 0
                 });
             }
         });
@@ -240,7 +247,8 @@ class GeneradorDatos {
                     prueba.media,
                     prueba.desviacion,
                     prueba.minimo,
-                    prueba.maximo
+                    prueba.maximo,
+                    prueba.alfa
                 );
 
                 // Agregar cada ítem
@@ -260,42 +268,51 @@ class GeneradorDatos {
         return datos;
     }
 
-    generarPuntajesPrueba(numItems, mediaTotal, desviacionTotal, minItem = null, maxItem = null) {
+    generarPuntajesPrueba(numItems, mediaTotal, desviacionTotal, minItem = null, maxItem = null, alfaObjetivo = 0, factor = null) {
         // IMPORTANTE: mediaTotal y desviacionTotal son los parámetros del puntaje TOTAL
         // de la prueba (lo que el usuario introduce en "Media (M)" y "DE"), NO valores por ítem.
-        // Cada ítem se genera de forma independiente alrededor de su media esperada:
-        //   mediaPorItem      = mediaTotal / numItems
-        //   desviacionPorItem = desviacionTotal / sqrt(numItems)
-        // (ver CORRECCIONES_APLICADAS.md). Así la suma de los ítems aproxima la media y la DE
-        // objetivo del total, en lugar de saturar cada ítem en su valor máximo.
+        // Cada ítem se genera alrededor de su media esperada (mediaTotal / numItems).
+        //
+        // FACTOR LATENTE: para que la escala tenga consistencia interna realista
+        // (α de Cronbach), los ítems comparten un factor común F:
+        //   ítem_estándar = λ·F + √(1−λ²)·ε
+        // donde λ es la carga factorial derivada del α objetivo. Con α = 0 los
+        // ítems son independientes (comportamiento original). La DE por ítem se
+        // ajusta para que la DE del TOTAL siga en el objetivo aunque los ítems
+        // estén correlacionados.
 
-        // Establecer límites por defecto si no se especifican
         if (minItem === null) minItem = 1;
         if (maxItem === null) maxItem = 7;
 
-        // Derivar parámetros por ítem a partir de los parámetros del total
-        const mediaPorItem = mediaTotal / numItems;
-        const desviacionPorItem = desviacionTotal / Math.sqrt(numItems);
+        const k = numItems;
+        const mediaPorItem = mediaTotal / k;
+
+        // Carga factorial λ a partir del α objetivo (fórmula de Spearman-Brown
+        // invertida): correlación media entre ítems r̄ = α / (k − α(k−1)); λ = √r̄.
+        let lambda = 0;
+        if (alfaObjetivo > 0 && alfaObjetivo < 1 && k >= 2) {
+            const rMedia = alfaObjetivo / (k - alfaObjetivo * (k - 1));
+            lambda = Math.sqrt(Math.max(0, Math.min(0.999, rMedia)));
+        }
+
+        // DE por ítem: Var(total) = k·σ_i²·(1 + (k−1)·λ²) debe igualar DE_total²
+        const desviacionPorItem = desviacionTotal / Math.sqrt(k * (1 + (k - 1) * lambda * lambda));
+
+        // Factor común de la escala (uno por participante); si se pasa, se reutiliza
+        // (lo usa el módulo de correlaciones para enlazar escalas).
+        const F = factor !== null ? factor : this.generarNormalEstandar();
+        const unicidad = Math.sqrt(1 - lambda * lambda);
 
         const items = [];
-
-        // Generar cada ítem de forma independiente con distribución normal
-        for (let i = 0; i < numItems; i++) {
-            // Generar valor usando distribución normal centrada en la media por ítem
-            let valor = this.generarValorNormal(mediaPorItem, desviacionPorItem);
-
-            // Aplicar límites del rango
+        for (let i = 0; i < k; i++) {
+            const z = lambda * F + unicidad * this.generarNormalEstandar();
+            let valor = mediaPorItem + desviacionPorItem * z;
             valor = Math.max(minItem, Math.min(maxItem, valor));
-
-            // Redondear al entero más cercano
             valor = Math.round(valor);
-
             items.push(valor);
         }
-        
-        // Calcular el total sumando todos los ítems
+
         const totalReal = items.reduce((a, b) => a + b, 0);
-        
         return {
             items: items,
             total: totalReal
