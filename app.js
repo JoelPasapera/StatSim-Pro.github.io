@@ -260,7 +260,10 @@ function actualizarEtiquetasAnalisis() {
 
     if (tipo === 'comparacion') {
         if (label1) label1.textContent = 'Variable cuantitativa';
-        if (label2) label2.textContent = 'Variable de agrupación (2 grupos)';
+        if (label2) label2.textContent = 'Variable de agrupación';
+    } else if (tipo === 'asociacion') {
+        if (label1) label1.textContent = 'Variable categórica 1';
+        if (label2) label2.textContent = 'Variable categórica 2';
     } else {
         if (label1) label1.textContent = 'Variable 1';
         if (label2) label2.textContent = 'Variable 2';
@@ -385,7 +388,7 @@ function limpiarResultados() {
         'pruebasNormalidadContainer', 'resultadosCorrelacion', 'resultadosRegresion',
         'resultadosDispersion', 'resultadosDecision', 'resultadosReporteAPA',
         'resultadosDimensiones', 'resultadosDiscusion', 'resultadosContainer',
-        'resultadosComparacion'
+        'resultadosComparacion', 'resultadosChiCuadrado'
     ];
     ids.forEach(id => {
         const elem = document.getElementById(id);
@@ -427,6 +430,8 @@ function ejecutarAnalisis() {
             limpiarResultados();
             if (tipoAnalisis === 'comparacion') {
                 ejecutarComparacion(var1, var2);
+            } else if (tipoAnalisis === 'asociacion') {
+                ejecutarChiCuadrado(var1, var2);
             } else {
                 ejecutarCorrelacion(var1, var2, tipoPrueba);
             }
@@ -496,6 +501,82 @@ function ejecutarComparacion(varCuantitativa, varAgrupacion) {
         const resultado = AnalizadorEstadistico.compararVariosGrupos(grupos, etiquetas);
         mostrarComparacionVarios(varCuantitativa, varAgrupacion, resultado);
     }
+}
+
+// Prueba de chi-cuadrado de independencia entre dos variables categóricas.
+function ejecutarChiCuadrado(var1, var2) {
+    const datos = AnalizadorEstadistico.obtenerDatos() || [];
+    const valores1 = datos.map(fila => fila[var1]);
+    const valores2 = datos.map(fila => fila[var2]);
+    const resultado = AnalizadorEstadistico.chiCuadradoIndependencia(valores1, valores2);
+    mostrarChiCuadrado(var1, var2, resultado);
+}
+
+// Bandas de la V de Cramér (Cohen) para gl* = 1; sirve como guía general.
+function interpretarCramerV(v) {
+    if (v < 0.1) return 'asociación nula o muy débil';
+    if (v < 0.3) return 'asociación débil';
+    if (v < 0.5) return 'asociación moderada';
+    return 'asociación fuerte';
+}
+
+function mostrarChiCuadrado(var1, var2, resultado) {
+    const container = document.getElementById('resultadosChiCuadrado');
+    if (!container) return;
+
+    const significativa = resultado.decision === 'rechazar';
+
+    // Tabla de contingencia (frecuencias observadas con totales)
+    const encabezado = `<tr><th>${var1} \\ ${var2}</th>${resultado.categorias2.map(c => `<th>${c}</th>`).join('')}<th>Total</th></tr>`;
+    const filas = resultado.observadas.map((fila, i) =>
+        `<tr><td><strong>${resultado.categorias1[i]}</strong></td>${fila.map(o => `<td>${o}</td>`).join('')}<td><strong>${resultado.totalFila[i]}</strong></td></tr>`
+    ).join('');
+    const totalFinal = `<tr><td><strong>Total</strong></td>${resultado.totalColumna.map(t => `<td><strong>${t}</strong></td>`).join('')}<td><strong>${resultado.n}</strong></td></tr>`;
+
+    const avisoEsperadas = resultado.esperadasBajas > 0
+        ? `<p class="result-subtitle" style="color: #b45309; margin-top: 0.5rem;">⚠️ ${resultado.esperadasBajas} casilla(s) tienen una frecuencia esperada menor que 5; la prueba de chi-cuadrado puede no ser fiable (considera la prueba exacta de Fisher).</p>`
+        : '';
+
+    const pTexto = resultado.pValor < 0.001 ? 'p < .001' : 'p = ' + resultado.pValor.toFixed(3).replace(/^0/, '');
+    const interpretacion = significativa
+        ? `Existe una asociación estadísticamente significativa entre ${var1} y ${var2} (χ²(${resultado.gl}) = ${resultado.chiCuadrado.toFixed(2)}, ${pTexto}). La V de Cramér (${resultado.cramerV.toFixed(3)}) indica una ${interpretarCramerV(resultado.cramerV)}. Las dos variables no son independientes.`
+        : `No se halló una asociación estadísticamente significativa entre ${var1} y ${var2} (χ²(${resultado.gl}) = ${resultado.chiCuadrado.toFixed(2)}, ${pTexto}); las variables pueden considerarse independientes.`;
+
+    container.innerHTML = `
+        <div class="result-section">
+            <h3 class="section-title">Asociación de Variables Categóricas (Chi-cuadrado)</h3>
+            <p class="result-subtitle">Prueba de independencia entre <strong>${var1}</strong> y <strong>${var2}</strong>. Evalúa si las dos variables categóricas están asociadas; la V de Cramér mide la fuerza de la asociación.</p>
+
+            <div class="result-box" style="overflow-x: auto;">
+                <h5 style="margin-bottom: 0.5rem; font-weight: 600;">Tabla de contingencia (frecuencias observadas)</h5>
+                <table class="result-table">
+                    ${encabezado}
+                    ${filas}
+                    ${totalFinal}
+                </table>
+                ${avisoEsperadas}
+            </div>
+
+            <div class="result-box">
+                <table class="result-table">
+                    <tr><td>Chi-cuadrado de Pearson:</td><td><strong>χ²(${resultado.gl}) = ${resultado.chiCuadrado.toFixed(3)}</strong></td></tr>
+                    <tr><td>p-valor:</td><td><strong>${resultado.pValor.toFixed(4)}</strong></td></tr>
+                    <tr><td>V de Cramér (tamaño del efecto):</td><td><strong>${resultado.cramerV.toFixed(3)}</strong> (${interpretarCramerV(resultado.cramerV)})</td></tr>
+                    <tr><td>N:</td><td>${resultado.n}</td></tr>
+                    <tr><td>Decisión sobre H₀:</td><td class="${significativa ? 'decision-reject' : 'decision-accept'}"><strong>${significativa ? 'SE RECHAZA H₀' : 'NO SE RECHAZA H₀'}</strong></td></tr>
+                </table>
+            </div>
+
+            <div class="result-box interpretation-box interpretation-box--hipotesis">
+                <h5 class="interpretation-title">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/></svg>
+                    Interpretación
+                </h5>
+                <p class="interpretation-text">${interpretacion}</p>
+            </div>
+        </div>`;
+    container.style.display = 'block';
+    desplazarHacia(container);
 }
 
 function mostrarMarcoMetodologico(marco) {
@@ -1388,7 +1469,8 @@ function descargarResultados() {
         ['REPORTE EN FORMATO APA', textoContenedor('resultadosReporteAPA')],
         ['ANÁLISIS POR DIMENSIONES', textoContenedor('resultadosDimensiones')],
         ['DISCUSIÓN (PLANTILLA)', textoContenedor('resultadosDiscusion')],
-        ['COMPARACIÓN DE GRUPOS', textoContenedor('resultadosComparacion')]
+        ['COMPARACIÓN DE GRUPOS', textoContenedor('resultadosComparacion')],
+        ['ASOCIACIÓN (CHI-CUADRADO)', textoContenedor('resultadosChiCuadrado')]
     ].filter(([, texto]) => texto);
 
     // Evitar descargar un archivo vacío si aún no se ejecutó el análisis

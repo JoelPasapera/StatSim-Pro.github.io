@@ -464,7 +464,11 @@
                             </label>
                             <label class="radio-label">
                                 <input type="radio" name="tipoAnalisis" value="comparacion">
-                                <span>Comparación de dos grupos</span>
+                                <span>Comparación de grupos</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="tipoAnalisis" value="asociacion">
+                                <span>Asociación de dos variables categóricas (Chi²)</span>
                             </label>
                         </div>
                     </div>
@@ -532,6 +536,9 @@
 
                 <!-- Resultados de comparación de grupos -->
                 <div id="resultadosComparacion" style="display: none;"></div>
+
+                <!-- Resultados de chi-cuadrado de independencia -->
+                <div id="resultadosChiCuadrado" style="display: none;"></div>
 
                 <!-- Botón Descargar Resultados -->
                 <button id="btnDescargarResultados" class="btn btn-outline">

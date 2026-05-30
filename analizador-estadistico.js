@@ -1117,6 +1117,91 @@ class AnalizadorEstadisticoProfesional {
         };
     }
 
+    // ========================================
+    // ASOCIACIÓN DE VARIABLES CATEGÓRICAS (CHI-CUADRADO)
+    // ========================================
+
+    /**
+     * Prueba chi-cuadrado de independencia entre dos variables categóricas.
+     * Construye la tabla de contingencia con los valores distintos de cada
+     * variable y calcula χ² de Pearson, sus grados de libertad, el p-valor y la
+     * V de Cramér (tamaño del efecto). Informa cuántas frecuencias esperadas
+     * son menores que 5 (supuesto del test).
+     */
+    chiCuadradoIndependencia(valores1, valores2) {
+        const n = Math.min(valores1.length, valores2.length);
+        const pares = [];
+        for (let i = 0; i < n; i++) {
+            const a = valores1[i], b = valores2[i];
+            const aOk = a !== undefined && a !== null && a !== '';
+            const bOk = b !== undefined && b !== null && b !== '';
+            if (aOk && bOk) pares.push([String(a), String(b)]);
+        }
+
+        const N = pares.length;
+        if (N < 2) {
+            throw new Error('No hay suficientes datos para la prueba de chi-cuadrado');
+        }
+
+        const ordenar = vals => [...new Set(vals)].sort((x, y) => {
+            const nx = parseFloat(x), ny = parseFloat(y);
+            return (isFinite(nx) && isFinite(ny)) ? nx - ny : x.localeCompare(y);
+        });
+        const categorias1 = ordenar(pares.map(p => p[0]));
+        const categorias2 = ordenar(pares.map(p => p[1]));
+        const f = categorias1.length;
+        const c = categorias2.length;
+
+        if (f < 2 || c < 2) {
+            throw new Error('Cada variable debe tener al menos 2 categorías distintas para la prueba de chi-cuadrado');
+        }
+        if (f > 15 || c > 15) {
+            throw new Error('Alguna variable tiene demasiadas categorías para una tabla de contingencia; usa variables categóricas (no continuas).');
+        }
+
+        const indice1 = {}; categorias1.forEach((v, i) => { indice1[v] = i; });
+        const indice2 = {}; categorias2.forEach((v, i) => { indice2[v] = i; });
+
+        const observadas = Array.from({ length: f }, () => new Array(c).fill(0));
+        pares.forEach(([a, b]) => { observadas[indice1[a]][indice2[b]]++; });
+
+        const totalFila = observadas.map(fila => fila.reduce((a, b) => a + b, 0));
+        const totalColumna = categorias2.map((_, j) => observadas.reduce((s, fila) => s + fila[j], 0));
+
+        const esperadas = Array.from({ length: f }, () => new Array(c).fill(0));
+        let chiCuadrado = 0;
+        let esperadasBajas = 0;
+        for (let i = 0; i < f; i++) {
+            for (let j = 0; j < c; j++) {
+                const e = (totalFila[i] * totalColumna[j]) / N;
+                esperadas[i][j] = e;
+                if (e < 5) esperadasBajas++;
+                if (e > 0) chiCuadrado += Math.pow(observadas[i][j] - e, 2) / e;
+            }
+        }
+
+        const gl = (f - 1) * (c - 1);
+        const pValor = this.calcularPValorChiCuadrado(chiCuadrado, gl);
+        const cramerV = Math.sqrt(chiCuadrado / (N * Math.min(f - 1, c - 1)));
+        const alpha = this.configuracionInvestigacion.nivelSignificancia;
+
+        return {
+            categorias1: categorias1,
+            categorias2: categorias2,
+            observadas: observadas,
+            esperadas: esperadas,
+            totalFila: totalFila,
+            totalColumna: totalColumna,
+            n: N,
+            chiCuadrado: chiCuadrado,
+            gl: gl,
+            pValor: pValor,
+            cramerV: cramerV,
+            esperadasBajas: esperadasBajas,
+            decision: pValor < alpha ? 'rechazar' : 'no_rechazar'
+        };
+    }
+
     correlacionPearson(valores1, valores2, tipoPrueba) {
         const n = valores1.length;
 
