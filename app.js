@@ -287,6 +287,10 @@ function cargarArchivoCSV(e) {
         }
     };
 
+    reader.onerror = function () {
+        mostrarToast('No se pudo leer el archivo', 'error');
+    };
+
     reader.readAsText(file);
 }
 
@@ -345,7 +349,8 @@ function ejecutarAnalisis() {
     try {
         const var1 = document.getElementById('variable1').value;
         const var2 = document.getElementById('variable2').value;
-        const tipoPrueba = document.querySelector('input[name="tipoPrueba"]:checked').value;
+        const tipoPruebaSeleccionado = document.querySelector('input[name="tipoPrueba"]:checked');
+        const tipoPrueba = tipoPruebaSeleccionado ? tipoPruebaSeleccionado.value : 'bilateral';
 
         if (!var1 || !var2) {
             mostrarToast('Por favor selecciona ambas variables', 'warning');
@@ -893,6 +898,10 @@ function importarConfigPruebas(e) {
         }
     };
 
+    reader.onerror = function () {
+        mostrarToast('No se pudo leer el archivo', 'error');
+    };
+
     reader.readAsText(file);
     e.target.value = ''; // Limpiar input
 }
@@ -1007,6 +1016,10 @@ function importarConfigSocio(e) {
         } catch (error) {
             mostrarToast('Error al importar: ' + error.message, 'error');
         }
+    };
+
+    reader.onerror = function () {
+        mostrarToast('No se pudo leer el archivo', 'error');
     };
 
     reader.readAsText(file);
