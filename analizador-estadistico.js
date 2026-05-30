@@ -693,6 +693,11 @@ class AnalizadorEstadisticoProfesional {
             resultado.regresion = this.calcularRegresionLineal(valores1, valores2);
         }
 
+        // Potencia estadística post-hoc (con el nivel de significancia configurado).
+        resultado.poder = this.calcularPoderEstadistico(
+            resultado.coeficiente, resultado.n, this.configuracionInvestigacion.nivelSignificancia
+        );
+
         // Pares de valores (para el diagrama de dispersión de las dos variables).
         resultado.valoresPareados = { x: valores1, y: valores2 };
 
@@ -875,6 +880,26 @@ class AnalizadorEstadisticoProfesional {
     obtenerZCritico(nivel) {
         const tabla = { 0.90: 1.644854, 0.95: 1.959964, 0.99: 2.575829 };
         return tabla[nivel] || 1.959964;
+    }
+
+    /**
+     * Potencia estadística post-hoc de la prueba de correlación (probabilidad
+     * de detectar el efecto observado), según la aproximación de Cohen basada
+     * en la transformación z de Fisher:
+     *   δ = |atanh(r)| · √(n − 3);  potencia = Φ(δ − z_{1−α/2}) + Φ(−δ − z_{1−α/2}).
+     * Devuelve null si N ≤ 3 o |r| ≥ 1.
+     */
+    calcularPoderEstadistico(r, n, alpha = 0.05) {
+        if (n <= 3 || Math.abs(r) >= 1) {
+            return null;
+        }
+
+        const delta = Math.abs(0.5 * Math.log((1 + Math.abs(r)) / (1 - Math.abs(r)))) * Math.sqrt(n - 3);
+        const zCritico = this.obtenerZCritico(1 - alpha);
+        const poder = this.distribucionNormalAcumulada(delta - zCritico)
+            + this.distribucionNormalAcumulada(-delta - zCritico);
+
+        return Math.max(0, Math.min(1, poder));
     }
 
     // Devuelve la probabilidad de DOS colas P(|T| > t) de una t de Student con

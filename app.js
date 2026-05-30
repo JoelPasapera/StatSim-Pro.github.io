@@ -677,11 +677,16 @@ function mostrarDecision(var1, var2, resultado) {
                         <td>Conclusión:</td>
                         <td><strong>${prueba.conclusionH1}</strong></td>
                     </tr>
+                    ${resultado.poder != null ? `
+                    <tr>
+                        <td>Potencia estadística (1 − β):</td>
+                        <td><strong>${(resultado.poder * 100).toFixed(1)}%</strong> ${resultado.poder >= 0.8 ? '(adecuada, ≥ 80%)' : '(insuficiente, &lt; 80%)'}</td>
+                    </tr>` : ''}
                 </table>
-                
+
                 <div style="margin-top: 1rem; padding: 1rem; background-color: #f9f9f9; border-radius: 6px;">
                     <p style="margin: 0; font-size: 0.9rem; line-height: 1.6;">
-                        ${prueba.conclusionH0}
+                        ${prueba.conclusionH0}${resultado.poder != null && resultado.poder < 0.8 ? ' La potencia es inferior al 80% recomendado por Cohen; un resultado no significativo podría deberse a un tamaño muestral insuficiente (riesgo de error tipo II).' : ''}
                     </p>
                 </div>
             </div>
