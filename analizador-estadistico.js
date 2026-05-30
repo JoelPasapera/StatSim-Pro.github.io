@@ -413,47 +413,140 @@ class AnalizadorEstadisticoProfesional {
         return resultado;
     }
 
+    /**
+     * Prueba de Shapiro-Wilk según el algoritmo de Royston (1992, AS R94),
+     * el mismo que usan R y SPSS. Calcula los pesos a_i a partir de las
+     * puntuaciones normales esperadas (Blom) con las correcciones polinómicas
+     * de Royston, en lugar de un peso constante (que invalidaba el estadístico).
+     */
     shapiroWilk(valores) {
         const n = valores.length;
-        const ordenados = [...valores].sort((a, b) => a - b);
+        const x = [...valores].sort((a, b) => a - b);
 
-        const descriptivas = this.calcularDescriptivas(valores);
-        const media = descriptivas.media;
-        const desviacion = descriptivas.desviacion;
+        // Puntuaciones normales esperadas m_i y su norma
+        const m = new Array(n);
+        for (let i = 0; i < n; i++) {
+            m[i] = this.cuantilNormalEstandar((i + 1 - 0.375) / (n + 0.25));
+        }
+        const ssm = m.reduce((acc, v) => acc + v * v, 0);
+        const sqrtSsm = Math.sqrt(ssm);
+        const rsn = 1 / Math.sqrt(n);
 
-        const estandarizados = ordenados.map(v => (v - media) / desviacion);
+        const poly = (coef, valor) => coef.reduce((acc, c, idx) => acc + c * Math.pow(valor, idx), 0);
+        const c1 = [0, 0.221157, -0.147981, -2.071190, 4.434685, -2.706056];
+        const c2 = [0, 0.042981, -0.293762, -1.752461, 5.682633, -3.582633];
 
-        let numerador = 0;
-        for (let i = 0; i < Math.floor(n / 2); i++) {
-            const peso = this.obtenerPesoShapiro(n, i + 1);
-            numerador += peso * (estandarizados[n - 1 - i] - estandarizados[i]);
+        // Pesos a_i (antisimétricos: a[n-1-i] = -a[i])
+        const a = new Array(n).fill(0);
+        let aUltimo = m[n - 1] / sqrtSsm;
+        let phi, indiceMedio;
+
+        if (n > 5) {
+            let aPenultimo = m[n - 2] / sqrtSsm;
+            aUltimo = poly(c1, rsn) + aUltimo;
+            aPenultimo = poly(c2, rsn) + aPenultimo;
+            phi = (ssm - 2 * m[n - 1] * m[n - 1] - 2 * m[n - 2] * m[n - 2]) /
+                (1 - 2 * aUltimo * aUltimo - 2 * aPenultimo * aPenultimo);
+            a[n - 1] = aUltimo; a[0] = -aUltimo;
+            a[n - 2] = aPenultimo; a[1] = -aPenultimo;
+            indiceMedio = 2;
+        } else {
+            aUltimo = poly(c1, rsn) + aUltimo;
+            phi = (ssm - 2 * m[n - 1] * m[n - 1]) / (1 - 2 * aUltimo * aUltimo);
+            a[n - 1] = aUltimo; a[0] = -aUltimo;
+            indiceMedio = 1;
         }
 
-        const denominador = estandarizados
-            .map(v => v * v)
-            .reduce((a, b) => a + b, 0);
+        const sqrtPhi = Math.sqrt(phi);
+        for (let i = indiceMedio; i < n - indiceMedio; i++) {
+            a[i] = m[i] / sqrtPhi;
+        }
 
-        const W = (numerador * numerador) / denominador;
-        const pValor = this.estimarPValorShapiro(W, n);
+        // Estadístico W = (Σ a_i x_(i))² / Σ (x_i - x̄)²
+        const media = x.reduce((s, v) => s + v, 0) / n;
+        let numerador = 0;
+        let denominador = 0;
+        for (let i = 0; i < n; i++) {
+            numerador += a[i] * x[i];
+            denominador += (x[i] - media) * (x[i] - media);
+        }
+        const W = denominador > 0 ? (numerador * numerador) / denominador : 0;
 
         return {
             estadistico: W,
-            pValor: pValor
+            pValor: this.estimarPValorShapiro(W, n)
         };
     }
 
-    obtenerPesoShapiro(n, i) {
-        return 1 / Math.sqrt(n);
+    /**
+     * p-valor de Shapiro-Wilk mediante la transformación de Royston (1992),
+     * con las ramas correspondientes a n = 3, 4 ≤ n ≤ 11 y n ≥ 12.
+     */
+    estimarPValorShapiro(W, n) {
+        if (W <= 0 || W >= 1) {
+            return W >= 1 ? 1 : 0;
+        }
+
+        // Caso exacto para n = 3 (Royston)
+        if (n === 3) {
+            const p = (6 / Math.PI) * (Math.asin(Math.sqrt(W)) - Math.asin(Math.sqrt(0.75)));
+            return Math.max(0, Math.min(1, p));
+        }
+
+        const poly = (coef, valor) => coef.reduce((acc, c, idx) => acc + c * Math.pow(valor, idx), 0);
+        let w1, mu, sigma;
+
+        if (n <= 11) {
+            const gamma = poly([-2.273, 0.459], n);
+            w1 = -Math.log(gamma - Math.log(1 - W));
+            mu = poly([0.5440, -0.39978, 0.025054, -0.0006714], n);
+            sigma = Math.exp(poly([1.3822, -0.77857, 0.062767, -0.0020322], n));
+        } else {
+            const ln = Math.log(n);
+            w1 = Math.log(1 - W);
+            mu = poly([-1.5861, -0.31082, -0.083751, 0.0038915], ln);
+            sigma = Math.exp(poly([-0.4803, -0.082676, 0.0030302], ln));
+        }
+
+        const z = (w1 - mu) / sigma;
+        const p = 1 - this.distribucionNormalAcumulada(z);
+        return Math.max(0, Math.min(1, p));
     }
 
-    estimarPValorShapiro(W, n) {
-        const mu = -1.5861 - 0.31082 * Math.log(n) - 0.083751 * Math.log(n) * Math.log(n);
-        const sigma = Math.exp(-0.4803 - 0.082676 * Math.log(n) + 0.0030302 * Math.log(n) * Math.log(n));
+    /**
+     * Cuantil de la distribución normal estándar (función inversa de la CDF),
+     * mediante la aproximación racional de Acklam (precisión ~1e-9).
+     */
+    cuantilNormalEstandar(p) {
+        if (p <= 0) return -Infinity;
+        if (p >= 1) return Infinity;
 
-        const z = (Math.log(1 - W) - mu) / sigma;
-        const p = 1 - this.distribucionNormalAcumulada(z);
+        const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+            1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+        const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+            6.680131188771972e+01, -1.328068155288572e+01];
+        const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+            -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+        const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00,
+            3.754408661907416e+00];
 
-        return Math.max(0.001, Math.min(0.999, p));
+        const pBajo = 0.02425;
+        const pAlto = 1 - pBajo;
+        let q, r;
+
+        if (p < pBajo) {
+            q = Math.sqrt(-2 * Math.log(p));
+            return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+                ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+        } else if (p <= pAlto) {
+            q = p - 0.5;
+            r = q * q;
+            return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+                (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+        }
+        q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
     }
 
     kolmogorovSmirnov(valores) {
