@@ -397,6 +397,7 @@ function ejecutarAnalisis() {
             mostrarDescriptivas(var1, var2, resultado);
             mostrarPruebasNormalidad(var1, var2, resultado);
             mostrarCorrelacion(var1, var2, resultado);
+            mostrarRegresion(var1, var2, resultado);
             mostrarDecision(var1, var2, resultado);
             mostrarReporteAPA(var1, var2, resultado);
             mostrarDimensionesSiAplica(var1, var2, tipoPrueba);
@@ -691,6 +692,42 @@ function mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto) 
     container.style.display = 'block';
 }
 
+function mostrarRegresion(var1, var2, resultado) {
+    const container = document.getElementById('resultadosRegresion');
+    if (!container) return;
+
+    // Solo cuando hay regresión (se cumplió la normalidad → método paramétrico)
+    const reg = resultado.regresion;
+    if (!reg) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    const signo = reg.intercepto >= 0 ? '+' : '−';
+    const ecuacion = `${var2} = ${reg.pendiente.toFixed(3)} · ${var1} ${signo} ${Math.abs(reg.intercepto).toFixed(3)}`;
+    const sentido = reg.pendiente >= 0 ? 'aumenta' : 'disminuye';
+
+    container.innerHTML = `
+        <div class="result-section">
+            <h3 class="section-title">Regresión Lineal Simple</h3>
+            <p class="result-subtitle">Modelo predictivo por mínimos cuadrados de ${var2} en función de ${var1}. Se reporta porque ambas variables cumplieron el supuesto de normalidad; la ecuación permite estimar ${var2} a partir de ${var1}.</p>
+            <div class="result-box">
+                <p class="apa-text" style="font-style: normal; font-weight: 600;">${ecuacion}</p>
+                <table class="result-table">
+                    <tr><td>Pendiente (B):</td><td><strong>${reg.pendiente.toFixed(4)}</strong> (EE = ${reg.errorEstandarPendiente.toFixed(4)})</td></tr>
+                    <tr><td>Intercepto (B₀):</td><td>${reg.intercepto.toFixed(4)}</td></tr>
+                    <tr><td>t de la pendiente (gl = ${reg.gl}):</td><td>${reg.tPendiente.toFixed(3)}</td></tr>
+                    <tr><td>p de la pendiente:</td><td><strong>${reg.pPendiente.toFixed(4)}</strong></td></tr>
+                    <tr><td>R² (bondad de ajuste):</td><td><strong>${(reg.r2 * 100).toFixed(1)}%</strong></td></tr>
+                    <tr><td>Error estándar de estimación:</td><td>${reg.errorEstandarEstimacion.toFixed(4)}</td></tr>
+                </table>
+                <p class="marco-text" style="margin-top: 0.75rem;">Por cada unidad que aumenta ${var1}, ${var2} ${sentido} en promedio ${Math.abs(reg.pendiente).toFixed(3)} unidades.</p>
+            </div>
+        </div>`;
+    container.style.display = 'block';
+}
+
 function mostrarDescriptivas(var1, var2, resultado) {
     const container = document.getElementById('resultadosDescriptivas');
     if (!container) return;
@@ -899,6 +936,7 @@ function descargarResultados() {
         ['ESTADÍSTICOS DESCRIPTIVOS', textoContenedor('resultadosDescriptivas')],
         ['PRUEBA DE NORMALIDAD', textoContenedor('pruebasNormalidadContainer')],
         ['ANÁLISIS DE CORRELACIÓN', textoContenedor('resultadosCorrelacion')],
+        ['REGRESIÓN LINEAL SIMPLE', textoContenedor('resultadosRegresion')],
         ['PRUEBA DE HIPÓTESIS', textoContenedor('resultadosDecision')],
         ['REPORTE EN FORMATO APA', textoContenedor('resultadosReporteAPA')],
         ['ANÁLISIS POR DIMENSIONES', textoContenedor('resultadosDimensiones')],

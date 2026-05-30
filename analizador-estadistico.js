@@ -686,7 +686,57 @@ class AnalizadorEstadisticoProfesional {
             resultado.coeficiente, resultado.n, resultado.tipoCorrelacion
         );
 
+        // Regresión lineal simple (var2 predicha desde var1). Solo se ofrece
+        // cuando se cumple el supuesto de normalidad (método paramétrico), por
+        // coherencia con el uso de Pearson.
+        if (resultado.tipoCorrelacion === 'Pearson') {
+            resultado.regresion = this.calcularRegresionLineal(valores1, valores2);
+        }
+
         return resultado;
+    }
+
+    /**
+     * Regresión lineal simple por mínimos cuadrados: predice `y` (criterio) a
+     * partir de `x` (predictor). Devuelve la pendiente y el intercepto, el
+     * coeficiente de determinación, el error estándar de estimación y la
+     * significancia de la pendiente (t de Student, gl = n − 2).
+     */
+    calcularRegresionLineal(x, y) {
+        const n = x.length;
+        const mediaX = x.reduce((a, b) => a + b, 0) / n;
+        const mediaY = y.reduce((a, b) => a + b, 0) / n;
+
+        let sxy = 0, sxx = 0, syy = 0;
+        for (let i = 0; i < n; i++) {
+            const dx = x[i] - mediaX;
+            const dy = y[i] - mediaY;
+            sxy += dx * dy;
+            sxx += dx * dx;
+            syy += dy * dy;
+        }
+
+        const pendiente = sxy / sxx;
+        const intercepto = mediaY - pendiente * mediaX;
+        const r2 = (sxy * sxy) / (sxx * syy);
+
+        // Suma de cuadrados residual y errores estándar
+        const ssResidual = Math.max(0, syy - pendiente * sxy);
+        const errorEstandarEstimacion = n > 2 ? Math.sqrt(ssResidual / (n - 2)) : 0;
+        const errorEstandarPendiente = errorEstandarEstimacion / Math.sqrt(sxx);
+        const tPendiente = errorEstandarPendiente > 0 ? pendiente / errorEstandarPendiente : 0;
+        const pPendiente = this.calcularPValorT(Math.abs(tPendiente), n - 2);
+
+        return {
+            pendiente: pendiente,
+            intercepto: intercepto,
+            r2: r2,
+            errorEstandarEstimacion: errorEstandarEstimacion,
+            errorEstandarPendiente: errorEstandarPendiente,
+            tPendiente: tPendiente,
+            gl: n - 2,
+            pPendiente: pPendiente
+        };
     }
 
     correlacionPearson(valores1, valores2, tipoPrueba) {
