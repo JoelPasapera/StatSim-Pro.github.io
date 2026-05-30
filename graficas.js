@@ -148,12 +148,16 @@ class ScientificCharts {
                 .text(title);
         }
 
+        // Dimensiones del área de contenido (dentro de los márgenes)
+        const anchoContenido = this.config.width - this.config.margin.left - this.config.margin.right;
+        const altoContenido = this.config.height - this.config.margin.top - this.config.margin.bottom;
+
         // Etiquetas de ejes
         if (yLabel) {
             g.append('text')
                 .attr('transform', 'rotate(-90)')
                 .attr('y', 0 - this.config.margin.left)
-                .attr('x', 0 - (this.config.height - this.config.margin.top - this.config.margin.bottom) / 2)
+                .attr('x', 0 - altoContenido / 2)
                 .attr('dy', '1em')
                 .style('text-anchor', 'middle')
                 .attr('font-size', this.config.fontSize)
@@ -161,8 +165,10 @@ class ScientificCharts {
         }
 
         if (xLabel) {
+            // Posición relativa al área de contenido, con holgura suficiente bajo
+            // las etiquetas de los ticks del eje X (que quedan en altoContenido).
             g.append('text')
-                .attr('transform', `translate(${(this.config.width - this.config.margin.left - this.config.margin.right) / 2}, ${this.config.height - this.config.margin.bottom - 10})`)
+                .attr('transform', `translate(${anchoContenido / 2}, ${altoContenido + 42})`)
                 .style('text-anchor', 'middle')
                 .attr('font-size', this.config.fontSize)
                 .text(xLabel);
@@ -319,9 +325,15 @@ class ScientificCharts {
             options.yLabel || ''
         );
 
+        // Desplazar la matriz hacia abajo para que las etiquetas de columna
+        // (en y = -10) no se solapen con el título superior del gráfico.
+        const desplazamientoSuperior = this.config.fontSize + 8;
+        const gMatriz = g.append('g')
+            .attr('transform', `translate(0, ${desplazamientoSuperior})`);
+
         // Crear celdas del heatmap
-        const cells = g.selectAll('.cell')
-            .data(data.flatMap((row, i) => 
+        const cells = gMatriz.selectAll('.cell')
+            .data(data.flatMap((row, i) =>
                 row.map((value, j) => ({ value, i, j }))
             ))
             .enter().append('g')
@@ -347,7 +359,7 @@ class ScientificCharts {
             .text(d => d.value.toFixed(2));
 
         // Etiquetas de filas
-        g.selectAll('.row-label')
+        gMatriz.selectAll('.row-label')
             .data(labels)
             .enter().append('text')
             .attr('class', 'row-label')
@@ -359,7 +371,7 @@ class ScientificCharts {
             .text(d => d);
 
         // Etiquetas de columnas
-        g.selectAll('.col-label')
+        gMatriz.selectAll('.col-label')
             .data(labels)
             .enter().append('text')
             .attr('class', 'col-label')
@@ -383,7 +395,7 @@ class ScientificCharts {
             .ticks(5)
             .tickFormat(d3.format('.1f'));
 
-        const legend = g.append('g')
+        const legend = gMatriz.append('g')
             .attr('transform', `translate(${legendX}, ${legendY})`);
 
         // Gradientes para la leyenda
