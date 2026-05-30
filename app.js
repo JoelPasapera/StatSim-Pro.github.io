@@ -474,20 +474,28 @@ function ejecutarComparacion(varCuantitativa, varAgrupacion) {
         .map(fila => [parseFloat(fila[varCuantitativa]), fila[varAgrupacion]])
         .filter(([valor, grupo]) => isFinite(valor) && grupo !== undefined && grupo !== null && grupo !== '');
 
-    const gruposDistintos = [...new Set(pares.map(par => String(par[1])))].sort();
+    const gruposDistintos = [...new Set(pares.map(par => String(par[1])))].sort((a, b) => {
+        const na = parseFloat(a), nb = parseFloat(b);
+        return (isFinite(na) && isFinite(nb)) ? na - nb : a.localeCompare(b);
+    });
 
-    if (gruposDistintos.length !== 2) {
-        throw new Error(`La variable de agrupación "${varAgrupacion}" debe tener exactamente 2 grupos (tiene ${gruposDistintos.length}). Elige una variable categórica binaria (p. ej. Sexo).`);
+    if (gruposDistintos.length < 2) {
+        throw new Error(`La variable de agrupación "${varAgrupacion}" no tiene al menos 2 grupos distintos.`);
+    }
+    if (gruposDistintos.length > 10) {
+        throw new Error(`La variable de agrupación "${varAgrupacion}" tiene demasiados grupos (${gruposDistintos.length}). Elige una variable categórica (p. ej. Sexo, condición).`);
     }
 
-    const grupo1 = pares.filter(par => String(par[1]) === gruposDistintos[0]).map(par => par[0]);
-    const grupo2 = pares.filter(par => String(par[1]) === gruposDistintos[1]).map(par => par[0]);
+    const grupos = gruposDistintos.map(valor => pares.filter(par => String(par[1]) === valor).map(par => par[0]));
+    const etiquetas = gruposDistintos.map(valor => `${varAgrupacion} = ${valor}`);
 
-    const etiqueta1 = `${varAgrupacion} = ${gruposDistintos[0]}`;
-    const etiqueta2 = `${varAgrupacion} = ${gruposDistintos[1]}`;
-    const resultado = AnalizadorEstadistico.compararGrupos(grupo1, grupo2, etiqueta1, etiqueta2);
-
-    mostrarComparacion(varCuantitativa, varAgrupacion, resultado);
+    if (gruposDistintos.length === 2) {
+        const resultado = AnalizadorEstadistico.compararGrupos(grupos[0], grupos[1], etiquetas[0], etiquetas[1]);
+        mostrarComparacion(varCuantitativa, varAgrupacion, resultado);
+    } else {
+        const resultado = AnalizadorEstadistico.compararVariosGrupos(grupos, etiquetas);
+        mostrarComparacionVarios(varCuantitativa, varAgrupacion, resultado);
+    }
 }
 
 function mostrarMarcoMetodologico(marco) {
@@ -913,6 +921,84 @@ function mostrarComparacion(varCuantitativa, varAgrupacion, resultado) {
                     Interpretación
                 </h5>
                 <p class="interpretation-text">${interpretarComparacion(varCuantitativa, varAgrupacion, resultado)}</p>
+            </div>
+        </div>`;
+    container.style.display = 'block';
+    desplazarHacia(container);
+}
+
+// Muestra el reporte de comparación de 3 o más grupos (ANOVA / Kruskal-Wallis).
+function mostrarComparacionVarios(varCuantitativa, varAgrupacion, resultado) {
+    const container = document.getElementById('resultadosComparacion');
+    if (!container) return;
+
+    const prueba = resultado.prueba;
+    const significativa = resultado.decision === 'rechazar';
+    const k = resultado.etiquetas.length;
+
+    const filasDesc = resultado.descriptivas.map((d, i) =>
+        `<tr><td>${resultado.etiquetas[i]}</td><td>${d.n}</td><td>${d.media.toFixed(2)}</td><td>${d.desviacion.toFixed(2)}</td><td>${resultado.normalidades[i].pValor.toFixed(3)} (${resultado.normalidades[i].normal ? 'normal' : 'no normal'})</td></tr>`
+    ).join('');
+
+    const lineaPrueba = resultado.parametrica
+        ? `F(${prueba.glEntre}, ${prueba.glDentro}) = ${prueba.F.toFixed(3)}`
+        : `H(${prueba.gl}) = ${prueba.H.toFixed(3)}`;
+    const efecto = resultado.parametrica
+        ? `η² = ${prueba.etaCuadrado.toFixed(3)} (${(prueba.etaCuadrado * 100).toFixed(1)}% de varianza explicada)`
+        : `ε² = ${prueba.epsilonCuadrado.toFixed(3)}`;
+
+    let postHocHtml = '';
+    if (resultado.postHoc) {
+        const filas = resultado.postHoc.comparaciones.map(c =>
+            `<tr><td>${c.grupo1}</td><td>${c.grupo2}</td><td>${c.pAjustada.toFixed(4)}</td><td>${c.significativa ? 'Sí' : 'No'}</td></tr>`
+        ).join('');
+        postHocHtml = `
+            <div class="result-box">
+                <h5 style="margin-bottom: 0.5rem; font-weight: 600;">Comparaciones por pares (post-hoc, ${resultado.postHoc.metodo})</h5>
+                <table class="result-table">
+                    <tr><th>Grupo A</th><th>Grupo B</th><th>p ajustada</th><th>Significativa</th></tr>
+                    ${filas}
+                </table>
+            </div>`;
+    }
+
+    const pTexto = prueba.pValor < 0.001 ? 'p < .001' : 'p = ' + prueba.pValor.toFixed(3).replace(/^0/, '');
+    const interpretacion = significativa
+        ? `Existen diferencias estadísticamente significativas en ${varCuantitativa} entre al menos dos de los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}). Las comparaciones por pares (Bonferroni) indican entre qué grupos se encuentran las diferencias.`
+        : `No se hallaron diferencias estadísticamente significativas en ${varCuantitativa} entre los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}).`;
+
+    container.innerHTML = `
+        <div class="result-section">
+            <h3 class="section-title">Comparación de Grupos (${k} grupos)</h3>
+            <p class="result-subtitle">Comparación de <strong>${varCuantitativa}</strong> entre los ${k} grupos de <strong>${varAgrupacion}</strong>. Se usa ANOVA de una vía si todos los grupos son normales, o Kruskal-Wallis si alguno no lo es. Si el resultado global es significativo, se muestran comparaciones por pares con corrección de Bonferroni.</p>
+
+            <div class="result-box">
+                <h5 style="margin-bottom: 0.5rem; font-weight: 600;">Descriptivos por grupo</h5>
+                <table class="result-table">
+                    <tr><th>Grupo</th><th>N</th><th>Media</th><th>DE</th><th>Normalidad (p)</th></tr>
+                    ${filasDesc}
+                </table>
+            </div>
+
+            <div class="result-box">
+                <table class="result-table">
+                    <tr><td>Levene (igualdad de varianzas):</td><td>F(${resultado.levene.df1}, ${resultado.levene.df2}) = ${resultado.levene.estadistico.toFixed(3)}, p = ${resultado.levene.pValor.toFixed(4)}</td></tr>
+                    <tr><td>Prueba aplicada:</td><td><strong>${prueba.prueba}</strong></td></tr>
+                    <tr><td>Estadístico:</td><td>${lineaPrueba}</td></tr>
+                    <tr><td>p-valor:</td><td><strong>${prueba.pValor.toFixed(4)}</strong></td></tr>
+                    <tr><td>Tamaño del efecto:</td><td><strong>${efecto}</strong></td></tr>
+                    <tr><td>Decisión sobre H₀:</td><td class="${significativa ? 'decision-reject' : 'decision-accept'}"><strong>${significativa ? 'SE RECHAZA H₀' : 'NO SE RECHAZA H₀'}</strong></td></tr>
+                </table>
+            </div>
+
+            ${postHocHtml}
+
+            <div class="result-box interpretation-box interpretation-box--hipotesis">
+                <h5 class="interpretation-title">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/></svg>
+                    Interpretación
+                </h5>
+                <p class="interpretation-text">${interpretacion}</p>
             </div>
         </div>`;
     container.style.display = 'block';

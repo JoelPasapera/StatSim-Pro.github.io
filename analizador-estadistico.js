@@ -762,10 +762,9 @@ class AnalizadorEstadisticoProfesional {
      * Prueba de Levene (variante de Brown-Forsythe, basada en la mediana, más
      * robusta ante no normalidad) para la igualdad de varianzas de dos grupos.
      */
-    pruebaLevene(grupo1, grupo2) {
-        const grupos = [grupo1, grupo2];
+    pruebaLevene(grupos) {
         const k = grupos.length;
-        const N = grupo1.length + grupo2.length;
+        const N = grupos.reduce((a, g) => a + g.length, 0);
 
         // z_ij = |x_ij − mediana_i|
         const z = grupos.map(g => {
@@ -890,7 +889,7 @@ class AnalizadorEstadisticoProfesional {
 
         const normalidad1 = this.evaluarNormalidad(grupo1);
         const normalidad2 = this.evaluarNormalidad(grupo2);
-        const levene = this.pruebaLevene(grupo1, grupo2);
+        const levene = this.pruebaLevene([grupo1, grupo2]);
 
         let prueba, parametrica;
         if (normalidad1.normal && normalidad2.normal) {
@@ -917,6 +916,201 @@ class AnalizadorEstadisticoProfesional {
             tamanoEfecto: this.calcularCohenD(grupo1, grupo2),
             alpha: alpha,
             decision: prueba.pValor < alpha ? 'rechazar' : 'no_rechazar'
+        };
+    }
+
+    // ========================================
+    // COMPARACIÓN DE VARIOS GRUPOS (ANOVA / KRUSKAL-WALLIS)
+    // ========================================
+
+    // Función gamma incompleta regularizada superior Q(a, x) (Numerical
+    // Recipes): por serie para x < a+1, por fracción continua en caso contrario.
+    gammaIncompletaQ(a, x) {
+        if (x <= 0) return 1;
+
+        if (x < a + 1) {
+            // Serie para P(a, x); Q = 1 − P
+            let ap = a;
+            let suma = 1 / a;
+            let termino = suma;
+            for (let i = 0; i < 200; i++) {
+                ap++;
+                termino *= x / ap;
+                suma += termino;
+                if (Math.abs(termino) < Math.abs(suma) * 1e-13) break;
+            }
+            const P = suma * Math.exp(-x + a * Math.log(x) - this.lnGamma(a));
+            return 1 - P;
+        }
+
+        // Fracción continua para Q(a, x) (método de Lentz)
+        const FPMIN = 1e-300;
+        const EPS = 1e-13;
+        let b = x + 1 - a;
+        let c = 1 / FPMIN;
+        let d = 1 / b;
+        let h = d;
+        for (let i = 1; i <= 200; i++) {
+            const an = -i * (i - a);
+            b += 2;
+            d = an * d + b;
+            if (Math.abs(d) < FPMIN) d = FPMIN;
+            c = b + an / c;
+            if (Math.abs(c) < FPMIN) c = FPMIN;
+            d = 1 / d;
+            const delta = d * c;
+            h *= delta;
+            if (Math.abs(delta - 1) < EPS) break;
+        }
+        return Math.exp(-x + a * Math.log(x) - this.lnGamma(a)) * h;
+    }
+
+    // p-valor (cola superior) de la distribución chi-cuadrado con `gl` gl.
+    calcularPValorChiCuadrado(x, gl) {
+        if (x <= 0) return 1;
+        return this.gammaIncompletaQ(gl / 2, x / 2);
+    }
+
+    /**
+     * ANOVA de una vía: compara las medias de k grupos. Devuelve F, sus grados
+     * de libertad, el p-valor y el tamaño del efecto eta² (proporción de
+     * varianza explicada).
+     */
+    anovaUnaVia(grupos) {
+        const k = grupos.length;
+        const N = grupos.reduce((a, g) => a + g.length, 0);
+        const granMedia = grupos.flat().reduce((a, b) => a + b, 0) / N;
+
+        let ssEntre = 0, ssDentro = 0;
+        grupos.forEach(g => {
+            const media = g.reduce((a, b) => a + b, 0) / g.length;
+            ssEntre += g.length * Math.pow(media - granMedia, 2);
+            g.forEach(v => { ssDentro += Math.pow(v - media, 2); });
+        });
+
+        const ssTotal = ssEntre + ssDentro;
+        const glEntre = k - 1;
+        const glDentro = N - k;
+        const msEntre = ssEntre / glEntre;
+        const msDentro = ssDentro / glDentro;
+        const F = msDentro > 0 ? msEntre / msDentro : 0;
+
+        return {
+            prueba: 'ANOVA de una vía',
+            F: F,
+            glEntre: glEntre,
+            glDentro: glDentro,
+            pValor: this.calcularPValorF(F, glEntre, glDentro),
+            etaCuadrado: ssTotal > 0 ? ssEntre / ssTotal : 0
+        };
+    }
+
+    /**
+     * Prueba de Kruskal-Wallis (ANOVA no paramétrica por rangos) para k grupos,
+     * con corrección por empates. Tamaño del efecto épsilon² (Tomczak, 2014).
+     */
+    kruskalWallis(grupos) {
+        const k = grupos.length;
+        const N = grupos.reduce((a, g) => a + g.length, 0);
+
+        const combinado = [];
+        grupos.forEach((g, indice) => g.forEach(v => combinado.push({ v, indice })));
+        combinado.sort((a, b) => a.v - b.v);
+
+        const rangos = new Array(N);
+        const tamanosEmpate = [];
+        let i = 0;
+        while (i < N) {
+            let j = i;
+            while (j < N && combinado[j].v === combinado[i].v) j++;
+            const rangoPromedio = (i + 1 + j) / 2;
+            for (let r = i; r < j; r++) rangos[r] = rangoPromedio;
+            tamanosEmpate.push(j - i);
+            i = j;
+        }
+
+        const sumaRangos = new Array(k).fill(0);
+        for (let r = 0; r < N; r++) sumaRangos[combinado[r].indice] += rangos[r];
+
+        let H = 0;
+        grupos.forEach((g, indice) => { H += (sumaRangos[indice] * sumaRangos[indice]) / g.length; });
+        H = (12 / (N * (N + 1))) * H - 3 * (N + 1);
+
+        // Corrección por empates
+        const correccion = 1 - tamanosEmpate.reduce((a, t) => a + (t * t * t - t), 0) / (N * N * N - N);
+        if (correccion > 0) H = H / correccion;
+
+        const gl = k - 1;
+        return {
+            prueba: 'Kruskal-Wallis',
+            H: H,
+            gl: gl,
+            pValor: this.calcularPValorChiCuadrado(H, gl),
+            epsilonCuadrado: N > 1 ? H / (N - 1) : 0
+        };
+    }
+
+    /**
+     * Comparaciones por pares post-hoc con corrección de Bonferroni (prueba t
+     * si es paramétrico, U de Mann-Whitney si no).
+     */
+    compararParesPostHoc(grupos, etiquetas, parametrica) {
+        const k = grupos.length;
+        const numComparaciones = k * (k - 1) / 2;
+        const alpha = this.configuracionInvestigacion.nivelSignificancia;
+        const comparaciones = [];
+
+        for (let i = 0; i < k; i++) {
+            for (let j = i + 1; j < k; j++) {
+                const prueba = parametrica
+                    ? this.pruebaTStudent(grupos[i], grupos[j])
+                    : this.pruebaMannWhitney(grupos[i], grupos[j]);
+                const pAjustada = Math.min(1, prueba.pValor * numComparaciones);
+                comparaciones.push({
+                    grupo1: etiquetas[i],
+                    grupo2: etiquetas[j],
+                    pValor: prueba.pValor,
+                    pAjustada: pAjustada,
+                    significativa: pAjustada < alpha
+                });
+            }
+        }
+
+        return { metodo: 'Bonferroni', comparaciones: comparaciones };
+    }
+
+    /**
+     * Compara k grupos (≥ 3) en una variable cuantitativa: ANOVA de una vía si
+     * todos los grupos son normales, o Kruskal-Wallis en caso contrario. Si el
+     * resultado es significativo, añade comparaciones por pares (Bonferroni).
+     */
+    compararVariosGrupos(grupos, etiquetas) {
+        if (grupos.some(g => g.length < 3)) {
+            throw new Error('Cada grupo necesita al menos 3 observaciones');
+        }
+
+        const normalidades = grupos.map(g => this.evaluarNormalidad(g));
+        const todasNormales = normalidades.every(n => n.normal);
+        const levene = this.pruebaLevene(grupos);
+
+        const parametrica = todasNormales;
+        const prueba = parametrica ? this.anovaUnaVia(grupos) : this.kruskalWallis(grupos);
+
+        const alpha = this.configuracionInvestigacion.nivelSignificancia;
+        const decision = prueba.pValor < alpha ? 'rechazar' : 'no_rechazar';
+        const postHoc = decision === 'rechazar'
+            ? this.compararParesPostHoc(grupos, etiquetas, parametrica)
+            : null;
+
+        return {
+            etiquetas: etiquetas,
+            descriptivas: grupos.map(g => this.calcularDescriptivas(g)),
+            normalidades: normalidades,
+            levene: levene,
+            prueba: prueba,
+            parametrica: parametrica,
+            decision: decision,
+            postHoc: postHoc
         };
     }
 
