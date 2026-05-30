@@ -549,6 +549,16 @@ class AnalizadorEstadisticoProfesional {
         resultado.interpretacion = this.interpretarCorrelacion(resultado.coeficiente, resultado.pValor);
         resultado.tipoPrueba = tipoPrueba;
 
+        // Estadísticos adicionales para el reporte (descriptivos, grados de
+        // libertad, tamaño del efecto r² e intervalo de confianza del coeficiente).
+        resultado.descriptivas1 = this.calcularDescriptivas(valores1);
+        resultado.descriptivas2 = this.calcularDescriptivas(valores2);
+        resultado.gl = resultado.n - 2;
+        resultado.r2 = resultado.coeficiente * resultado.coeficiente;
+        resultado.intervaloConfianza = this.intervaloConfianzaR(
+            resultado.coeficiente, resultado.n, resultado.tipoCorrelacion
+        );
+
         return resultado;
     }
 
@@ -621,16 +631,22 @@ class AnalizadorEstadisticoProfesional {
     }
 
     calcularPValorPearson(r, n, tipoPrueba) {
+        if (n <= 2) {
+            return 1; // Sin grados de libertad suficientes
+        }
+        if (Math.abs(r) >= 1) {
+            return 0; // Correlación perfecta: significancia máxima
+        }
+
         const t = r * Math.sqrt((n - 2) / (1 - r * r));
         const gl = n - 2;
 
-        let pValor = this.calcularPValorT(Math.abs(t), gl);
+        // calcularPValorT devuelve la probabilidad de DOS colas, P(|T| > |t|),
+        // que es directamente el p-valor bilateral. El unilateral es la mitad.
+        const pDosColas = this.calcularPValorT(Math.abs(t), gl);
+        const pValor = tipoPrueba === 'bilateral' ? pDosColas : pDosColas / 2;
 
-        if (tipoPrueba === 'bilateral') {
-            pValor = pValor * 2;
-        }
-
-        return Math.min(1, pValor);
+        return Math.min(1, Math.max(0, pValor));
     }
 
     calcularPValorSpearman(rho, n, tipoPrueba) {
@@ -648,33 +664,116 @@ class AnalizadorEstadisticoProfesional {
         }
     }
 
-    calcularPValorT(t, gl) {
-        const x = gl / (gl + t * t);
-        const a = gl / 2;
-        const b = 0.5;
+    /**
+     * Intervalo de confianza del coeficiente de correlación mediante la
+     * transformación z de Fisher. Para Spearman se aplica la corrección del
+     * error estándar de Bonett-Wright (2000). Devuelve null si N ≤ 3 o si el
+     * coeficiente es exactamente ±1 (la transformación no está definida).
+     */
+    intervaloConfianzaR(r, n, tipoCorrelacion, nivel = 0.95) {
+        if (n <= 3 || Math.abs(r) >= 1) {
+            return null;
+        }
 
-        const betaInc = this.betaIncompleta(x, a, b);
+        // Transformación de Fisher (z) y su error estándar
+        const zr = 0.5 * Math.log((1 + r) / (1 - r));
+        const esSpearman = typeof tipoCorrelacion === 'string' && tipoCorrelacion.includes('Spearman');
+        const errorEstandar = esSpearman
+            ? Math.sqrt((1 + r * r / 2) / (n - 3))   // Bonett-Wright para Spearman
+            : 1 / Math.sqrt(n - 3);                   // Fisher para Pearson
 
-        return betaInc;
+        const zCritico = this.obtenerZCritico(nivel);
+        const zInferior = zr - zCritico * errorEstandar;
+        const zSuperior = zr + zCritico * errorEstandar;
+
+        // Transformación inversa (tanh)
+        const aCorrelacion = z => (Math.exp(2 * z) - 1) / (Math.exp(2 * z) + 1);
+
+        return {
+            inferior: aCorrelacion(zInferior),
+            superior: aCorrelacion(zSuperior),
+            nivel: nivel
+        };
     }
 
+    // z crítico bilateral para los niveles de confianza más usados.
+    obtenerZCritico(nivel) {
+        const tabla = { 0.90: 1.644854, 0.95: 1.959964, 0.99: 2.575829 };
+        return tabla[nivel] || 1.959964;
+    }
+
+    // Devuelve la probabilidad de DOS colas P(|T| > t) de una t de Student con
+    // `gl` grados de libertad, mediante la beta incompleta regularizada:
+    // P(|T| > t) = I_x(gl/2, 1/2) con x = gl / (gl + t²).
+    calcularPValorT(t, gl) {
+        const x = gl / (gl + t * t);
+        return this.betaIncompleta(x, gl / 2, 0.5);
+    }
+
+    /**
+     * Función beta incompleta regularizada I_x(a, b), calculada con la fracción
+     * continua de Lentz (Numerical Recipes). Se aplica la simetría
+     * I_x(a, b) = 1 - I_{1-x}(b, a) según el valor de x para garantizar la
+     * convergencia (la serie directa fallaba cuando x se acercaba a 1, lo que
+     * producía p-valores erróneamente pequeños).
+     */
     betaIncompleta(x, a, b) {
         if (x <= 0) return 0;
         if (x >= 1) return 1;
 
-        const lnBeta = this.lnGamma(a) + this.lnGamma(b) - this.lnGamma(a + b);
-        const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lnBeta) / a;
+        // Factor frontal x^a (1-x)^b / B(a, b), vía lnGamma para estabilidad.
+        const ln = this.lnGamma(a + b) - this.lnGamma(a) - this.lnGamma(b)
+            + a * Math.log(x) + b * Math.log(1 - x);
+        const factor = Math.exp(ln);
 
-        let suma = 1.0;
-        let termino = 1.0;
+        if (x < (a + 1) / (a + b + 2)) {
+            return factor * this.fraccionContinuaBeta(x, a, b) / a;
+        }
+        return 1 - factor * this.fraccionContinuaBeta(1 - x, b, a) / b;
+    }
 
-        for (let i = 0; i < 100; i++) {
-            termino *= (a + i) / (a + b + i) * x;
-            suma += termino / (a + i + 1);
-            if (Math.abs(termino) < 1e-10) break;
+    // Fracción continua para la beta incompleta (método de Lentz modificado).
+    fraccionContinuaBeta(x, a, b) {
+        const MAX_ITER = 200;
+        const EPS = 3e-12;
+        const FPMIN = 1e-300;
+
+        const qab = a + b;
+        const qap = a + 1;
+        const qam = a - 1;
+
+        let c = 1;
+        let d = 1 - qab * x / qap;
+        if (Math.abs(d) < FPMIN) d = FPMIN;
+        d = 1 / d;
+        let h = d;
+
+        for (let m = 1; m <= MAX_ITER; m++) {
+            const m2 = 2 * m;
+
+            // Paso par
+            let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+            d = 1 + aa * d;
+            if (Math.abs(d) < FPMIN) d = FPMIN;
+            c = 1 + aa / c;
+            if (Math.abs(c) < FPMIN) c = FPMIN;
+            d = 1 / d;
+            h *= d * c;
+
+            // Paso impar
+            aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+            d = 1 + aa * d;
+            if (Math.abs(d) < FPMIN) d = FPMIN;
+            c = 1 + aa / c;
+            if (Math.abs(c) < FPMIN) c = FPMIN;
+            d = 1 / d;
+            const delta = d * c;
+            h *= delta;
+
+            if (Math.abs(delta - 1) < EPS) break;
         }
 
-        return front * suma;
+        return h;
     }
 
     lnGamma(x) {
