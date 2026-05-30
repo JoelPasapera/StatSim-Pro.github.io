@@ -26,8 +26,12 @@ function configurarNavegacion() {
             const targetId = this.getAttribute('href').substring(1);
 
             // Actualizar navegación activa
-            navLinks.forEach(l => l.classList.remove('active'));
+            navLinks.forEach(l => {
+                l.classList.remove('active');
+                l.removeAttribute('aria-current');
+            });
             this.classList.add('active');
+            this.setAttribute('aria-current', 'page');
 
             // Mostrar sección correspondiente
             document.querySelectorAll('.section').forEach(section => {
