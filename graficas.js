@@ -837,6 +837,109 @@ class ScientificCharts {
     }
 
     /**
+     * Crea un gráfico Q-Q (cuantil-cuantil) para evaluar visualmente la
+     * normalidad: enfrenta los cuantiles observados (estandarizados) con los
+     * cuantiles teóricos de la normal estándar. Si los puntos se alinean con la
+     * recta de referencia y = x, la distribución es aproximadamente normal.
+     * @param {Array} data - Datos numéricos
+     * @param {object} options - Opciones adicionales
+     * @returns {ScientificCharts} - Instancia para chaining
+     */
+    createQQPlot(data, options = {}) {
+        if (!Array.isArray(data) || data.length < 3) {
+            throw new Error('Se necesitan al menos 3 datos para el gráfico Q-Q');
+        }
+
+        const n = data.length;
+        const ordenados = [...data].sort((a, b) => a - b);
+        const media = d3.mean(ordenados);
+        const desviacion = d3.deviation(ordenados) || 1;
+
+        // (cuantil teórico normal, valor observado estandarizado)
+        const puntos = ordenados.map((v, i) => ({
+            teorico: this._cuantilNormalEstandar((i + 0.5) / n),
+            observado: (v - media) / desviacion
+        }));
+
+        const contentWidth = this.config.width - this.config.margin.left - this.config.margin.right;
+        const contentHeight = this.config.height - this.config.margin.top - this.config.margin.bottom;
+
+        const minimo = Math.min(d3.min(puntos, d => d.teorico), d3.min(puntos, d => d.observado));
+        const maximo = Math.max(d3.max(puntos, d => d.teorico), d3.max(puntos, d => d.observado));
+
+        const xScale = d3.scaleLinear().domain([minimo, maximo]).range([0, contentWidth]);
+        const yScale = d3.scaleLinear().domain([minimo, maximo]).range([contentHeight, 0]);
+
+        const g = this._createChartBase(
+            options.title || 'Gráfico Q-Q',
+            options.xLabel || 'Cuantiles teóricos (normal)',
+            options.yLabel || 'Cuantiles observados'
+        );
+
+        // Recta de referencia y = x (normalidad perfecta)
+        g.append('line')
+            .attr('x1', xScale(minimo)).attr('y1', yScale(minimo))
+            .attr('x2', xScale(maximo)).attr('y2', yScale(maximo))
+            .attr('stroke', this.config.secondaryColor)
+            .attr('stroke-width', 2)
+            .attr('stroke-dasharray', '5,5');
+
+        // Puntos
+        g.selectAll('.qq-dot')
+            .data(puntos).enter().append('circle')
+            .attr('class', 'qq-dot')
+            .attr('cx', d => xScale(d.teorico))
+            .attr('cy', d => yScale(d.observado))
+            .attr('r', 3)
+            .attr('fill', this.config.primaryColor)
+            .attr('opacity', 0.7);
+
+        // Ejes
+        g.append('g')
+            .attr('transform', `translate(0,${contentHeight})`)
+            .call(d3.axisBottom(xScale));
+        g.append('g').call(d3.axisLeft(yScale));
+
+        return this;
+    }
+
+    /**
+     * Inverso de la CDF normal estándar (aproximación racional de Acklam),
+     * usado para los cuantiles teóricos del gráfico Q-Q.
+     * @private
+     */
+    _cuantilNormalEstandar(p) {
+        if (p <= 0) return -3.5;
+        if (p >= 1) return 3.5;
+
+        const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+            1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+        const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+            6.680131188771972e+01, -1.328068155288572e+01];
+        const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+            -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+        const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00,
+            3.754408661907416e+00];
+
+        const pBajo = 0.02425;
+        const pAlto = 1 - pBajo;
+
+        if (p < pBajo) {
+            const q = Math.sqrt(-2 * Math.log(p));
+            return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+                ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+        } else if (p <= pAlto) {
+            const q = p - 0.5;
+            const r = q * q;
+            return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+                (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+        }
+        const q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+
+    /**
      * Crea un histograma con curva de densidad
      * @param {Array} data - Datos numéricos
      * @param {number} bins - Número de bins (opcional)

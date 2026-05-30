@@ -520,6 +520,14 @@ function mostrarPruebasNormalidad(var1, var2, resultado) {
                     </tr>
                 </table>
             </div>
+            <!-- Gráficos Q-Q para evaluar visualmente la normalidad -->
+            <div class="result-box">
+                <p class="result-subtitle" style="margin-bottom: 0.5rem;">Gráficos Q-Q: si los puntos se alinean con la recta de referencia, la distribución es aproximadamente normal.</p>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                    <div id="qqVariable1"></div>
+                    <div id="qqVariable2"></div>
+                </div>
+            </div>
             <!-- Interpretación de Normalidad -->
             <div class="result-box interpretation-box interpretation-box--normalidad">
                 <h5 class="interpretation-title">
@@ -533,11 +541,33 @@ function mostrarPruebasNormalidad(var1, var2, resultado) {
                 </p>
             </div>
         </div>
-        
+
     `;
 
     container.innerHTML = html;
     container.style.display = 'block';
+
+    // Dibujar los gráficos Q-Q con los valores de cada variable
+    dibujarGraficosQQ(var1, var2, resultado);
+}
+
+// Dibuja un gráfico Q-Q por cada variable usando sus valores pareados.
+function dibujarGraficosQQ(var1, var2, resultado) {
+    const pares = resultado.valoresPareados;
+    if (!pares) return;
+
+    const dibujar = (idContenedor, valores, etiqueta) => {
+        if (!document.getElementById(idContenedor) || !Array.isArray(valores) || valores.length < 3) return;
+        try {
+            new ScientificCharts(idContenedor, { width: 360, height: 300, primaryColor: '#2E5BBA' })
+                .createQQPlot(valores, { title: `Q-Q: ${etiqueta}` });
+        } catch (error) {
+            console.error(`Error al crear el gráfico Q-Q de ${etiqueta}:`, error);
+        }
+    };
+
+    dibujar('qqVariable1', pares.x, var1);
+    dibujar('qqVariable2', pares.y, var2);
 }
 
 function mostrarCorrelacion(var1, var2, resultado) {
