@@ -13,7 +13,6 @@ class AnalizadorEstadisticoProfesional {
             tipoEstudio: 'correlacional', // correlacional, descriptivo, experimental
             nivelSignificancia: 0.05
         };
-        console.log('Configuración inicial:', this.configuracion);
         // NUEVO: Dimensiones y estructura de las variables
         this.dimensiones = {
             // variable1: { dimension1: [items], dimension2: [items] }
@@ -244,7 +243,7 @@ class AnalizadorEstadisticoProfesional {
             objetivoGeneral: this.generarObjetivoGeneral(var1, var2, unidadAnalisis, lugarContexto),
             objetivosEspecificos: this.generarObjetivosEspecificos(var1, var2, unidadAnalisis, lugarContexto),
             hipotesis: this.generarHipotesis(var1, var2, unidadAnalisis, lugarContexto),
-            configuracion: this.configuracion
+            configuracion: this.configuracionInvestigacion
         };
     }
 
