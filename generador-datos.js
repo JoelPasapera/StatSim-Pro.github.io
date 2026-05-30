@@ -41,8 +41,9 @@ class GeneradorDatos {
 
     recolectarPruebas() {
         const pruebas = [];
+        const nombresCortosUsados = new Set();
         const filas = document.querySelectorAll('#bodyPruebas .fila-prueba');
-        
+
         filas.forEach((fila, index) => {
             const inputs = fila.querySelectorAll('input');
             const nombre = inputs[0].value.trim();
@@ -69,7 +70,7 @@ class GeneradorDatos {
 
                 pruebas.push({
                     nombre: nombre,
-                    nombreCorto: this.generarNombreCorto(nombre),
+                    nombreCorto: this.generarNombreCortoUnico(nombre, nombresCortosUsados),
                     numItems: numItems,
                     media: media,
                     desviacion: desviacion,
@@ -84,8 +85,9 @@ class GeneradorDatos {
 
     recolectarSociodemograficos() {
         const socio = [];
+        const nombresCortosUsados = new Set();
         const filas = document.querySelectorAll('#bodySocio .fila-socio');
-        
+
         filas.forEach((fila, index) => {
             const inputs = fila.querySelectorAll('input');
             const categoria = inputs[0].value.trim();
@@ -118,7 +120,7 @@ class GeneradorDatos {
 
                 socio.push({
                     categoria: categoria,
-                    categoriaCorta: this.generarNombreCorto(categoria),
+                    categoriaCorta: this.generarNombreCortoUnico(categoria, nombresCortosUsados),
                     promedio: promedio,
                     desviacion: desviacion,
                     minimo: !isNaN(minimo) ? minimo : null,
@@ -139,8 +141,26 @@ class GeneradorDatos {
             .split(/\s+/) // Separar por espacios
             .map(palabra => palabra.charAt(0).toUpperCase()) // Primera letra
             .join('');
-        
+
         return corto.substring(0, 10); // Máximo 10 caracteres
+    }
+
+    // Devuelve un nombre corto único respecto a `usados`, agregando un sufijo
+    // numérico si hay colisión. Evita que dos pruebas/variables con iniciales
+    // iguales generen el mismo prefijo de columna y se sobrescriban entre sí.
+    generarNombreCortoUnico(nombre, usados) {
+        let base = this.generarNombreCorto(nombre);
+        if (!base) base = 'V'; // Respaldo si el nombre no tiene caracteres alfanuméricos
+
+        let corto = base;
+        let sufijo = 2;
+        while (usados.has(corto)) {
+            corto = `${base}_${sufijo}`;
+            sufijo++;
+        }
+
+        usados.add(corto);
+        return corto;
     }
 
     // ========================================
