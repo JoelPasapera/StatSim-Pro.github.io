@@ -1696,11 +1696,13 @@ function exportarConfigSocio() {
         }
 
         // Crear CSV con encabezados
-        let csv = 'Categoria,Promedio,DE,Minimo,Maximo,Decimales\n';
+        let csv = 'Categoria,Distribucion,Promedio,DE,Minimo,Maximo,Decimales\n';
 
         filas.forEach(fila => {
             const inputs = fila.querySelectorAll('input');
+            const select = fila.querySelector('select');
             const categoria = inputs[0].value.trim() || '';
+            const distribucion = select ? select.value : 'normal';
             const promedio = inputs[1].value || '';
             const de = inputs[2].value || '';
             const min = inputs[3].value || '';
@@ -1709,7 +1711,7 @@ function exportarConfigSocio() {
 
             // Escapar valores con comas
             const categoriaEscapada = categoria.includes(',') ? `"${categoria}"` : categoria;
-            csv += `${categoriaEscapada},${promedio},${de},${min},${max},${decimales}\n`;
+            csv += `${categoriaEscapada},${distribucion},${promedio},${de},${min},${max},${decimales}\n`;
         });
 
         // Descargar archivo
@@ -1747,6 +1749,10 @@ function importarConfigSocio(e) {
             const tbody = document.getElementById('bodySocio');
             tbody.innerHTML = '';
 
+            // El formato nuevo incluye una columna "Distribucion" tras "Categoria";
+            // se detecta por el encabezado para mantener compatibilidad con CSV viejos.
+            const tieneDistribucion = encabezados.includes('distribucion');
+
             // Procesar cada línea (saltar encabezados)
             for (let i = 1; i < lineas.length; i++) {
                 const linea = lineas[i].trim();
@@ -1755,13 +1761,15 @@ function importarConfigSocio(e) {
                 const valores = parsearLineaCSV(linea);
 
                 if (valores.length >= 3) {
+                    const desplazamiento = tieneDistribucion ? 1 : 0;
                     agregarFilaSocioConDatos({
                         categoria: valores[0] || '',
-                        promedio: valores[1] || '',
-                        de: valores[2] || '',
-                        min: valores[3] || '',
-                        max: valores[4] || '',
-                        decimales: valores[5] || '2'
+                        distribucion: tieneDistribucion ? (valores[1] || 'normal') : 'normal',
+                        promedio: valores[1 + desplazamiento] || '',
+                        de: valores[2 + desplazamiento] || '',
+                        min: valores[3 + desplazamiento] || '',
+                        max: valores[4 + desplazamiento] || '',
+                        decimales: valores[5 + desplazamiento] || '2'
                     });
                 }
             }
@@ -1786,8 +1794,16 @@ function agregarFilaSocioConDatos(datos) {
     const nuevaFila = document.createElement('tr');
     nuevaFila.className = 'fila-socio';
 
+    const dist = datos.distribucion || 'normal';
+    const opcion = (valor, etiqueta) => `<option value="${valor}"${dist === valor ? ' selected' : ''}>${etiqueta}</option>`;
+
     nuevaFila.innerHTML = `
         <td><input type="text" class="input input-sm" placeholder="Ej: Edad" value="${datos.categoria}" aria-label="Categoría"></td>
+        <td>
+            <select class="input input-sm" aria-label="Distribución">
+                ${opcion('normal', 'Normal')}${opcion('uniforme', 'Uniforme')}${opcion('asimetrica', 'Asimétrica')}${opcion('conteo', 'Conteo (Poisson)')}${opcion('binaria', 'Binaria (0/1)')}${opcion('categorica', 'Categórica')}
+            </select>
+        </td>
         <td><input type="number" class="input input-sm" placeholder="Ej: 20" step="0.01" value="${datos.promedio}" aria-label="Promedio"></td>
         <td><input type="number" class="input input-sm" placeholder="Ej: 2.5" step="0.01" min="0.01" value="${datos.de}" aria-label="Desviación estándar"></td>
         <td><input type="number" class="input input-sm" placeholder="Ej: 15" step="0.01" value="${datos.min}" aria-label="Mínimo"></td>

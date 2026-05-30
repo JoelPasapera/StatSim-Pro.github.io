@@ -135,6 +135,8 @@ class GeneradorDatos {
 
         filas.forEach((fila, index) => {
             const inputs = fila.querySelectorAll('input');
+            const selectDist = fila.querySelector('select');
+            const distribucion = selectDist ? selectDist.value : 'normal';
             const categoria = inputs[0].value.trim();
             const promedio = parseFloat(inputs[1].value);
             const desviacion = parseFloat(inputs[2].value);
@@ -142,9 +144,19 @@ class GeneradorDatos {
             const maximo = parseFloat(inputs[4].value);
             const decimales = parseInt(inputs[5].value);
 
-            if (categoria && !isNaN(promedio) && !isNaN(desviacion)) {
-                if (desviacion <= 0) {
+            // Distribuciones que no requieren DE (uniforme, conteo, binaria,
+            // categórica): basta con la categoría y el promedio/rango.
+            const requiereDE = distribucion === 'normal' || distribucion === 'asimetrica';
+
+            if (categoria && !isNaN(promedio) && (!requiereDE || !isNaN(desviacion))) {
+                if (requiereDE && desviacion <= 0) {
                     throw new Error(`Categoría "${categoria}": La desviación estándar debe ser mayor a 0`);
+                }
+                if ((distribucion === 'uniforme' || distribucion === 'categorica') && (isNaN(minimo) || isNaN(maximo))) {
+                    throw new Error(`Categoría "${categoria}": las distribuciones uniforme y categórica requieren mínimo y máximo`);
+                }
+                if (distribucion === 'binaria' && (promedio < 0 || promedio > 1)) {
+                    throw new Error(`Categoría "${categoria}": en una variable binaria el promedio es la proporción de unos (entre 0 y 1)`);
                 }
                 
                 // Validar rango si se especifica
@@ -166,8 +178,9 @@ class GeneradorDatos {
                 socio.push({
                     categoria: categoria,
                     categoriaCorta: this.generarNombreCortoUnico(categoria, nombresCortosUsados),
+                    distribucion: distribucion,
                     promedio: promedio,
-                    desviacion: desviacion,
+                    desviacion: !isNaN(desviacion) ? desviacion : 1,
                     minimo: !isNaN(minimo) ? minimo : null,
                     maximo: !isNaN(maximo) ? maximo : null,
                     decimales: numDecimales
@@ -223,21 +236,9 @@ class GeneradorDatos {
         for (let i = 0; i < n; i++) {
             const participante = { ID: i + 1 };
 
-            // Generar datos sociodemográficos
+            // Generar datos sociodemográficos según su distribución
             this.configuracion.sociodemograficos.forEach(socio => {
-                let valor = this.generarValorNormal(
-                    socio.promedio,
-                    socio.desviacion
-                );
-                
-                // Aplicar límites si están definidos
-                if (socio.minimo !== null && socio.maximo !== null) {
-                    valor = Math.max(socio.minimo, Math.min(socio.maximo, valor));
-                }
-                
-                // Redondear según número de decimales especificado
-                const factor = Math.pow(10, socio.decimales);
-                participante[socio.categoriaCorta] = Math.round(valor * factor) / factor;
+                participante[socio.categoriaCorta] = this.generarValorSociodemografico(socio);
             });
 
             // Generar datos de cada prueba
@@ -330,6 +331,77 @@ class GeneradorDatos {
     generarValorNormal(media, desviacion) {
         // NO redondear aquí, se redondeará después según el contexto
         return media + desviacion * this.generarNormalEstandar();
+    }
+
+    // Valor uniforme continuo en [min, max].
+    generarUniforme(min, max) {
+        return min + this.aleatorio() * (max - min);
+    }
+
+    // Valor log-normal (asimetría positiva) calibrado para que su media y su
+    // desviación estándar sean aproximadamente las pedidas. Requiere media > 0.
+    generarAsimetrico(media, desviacion) {
+        const m = Math.max(1e-6, media);
+        const sigma2 = Math.log(1 + (desviacion * desviacion) / (m * m));
+        const sigma = Math.sqrt(sigma2);
+        const mu = Math.log(m) - sigma2 / 2;
+        return Math.exp(mu + sigma * this.generarNormalEstandar());
+    }
+
+    // Valor de una distribución de Poisson con media lambda (algoritmo de Knuth).
+    generarPoisson(lambda) {
+        if (lambda <= 0) return 0;
+        const limite = Math.exp(-lambda);
+        let k = 0;
+        let producto = 1;
+        do {
+            k++;
+            producto *= this.aleatorio();
+        } while (producto > limite);
+        return k - 1;
+    }
+
+    // Valor binario (Bernoulli): 1 con probabilidad `proporcion`, 0 si no.
+    generarBinaria(proporcion) {
+        return this.aleatorio() < proporcion ? 1 : 0;
+    }
+
+    // Categoría entera equiprobable en [min, max].
+    generarCategoria(min, max) {
+        const k = Math.floor(max - min + 1);
+        return min + Math.floor(this.aleatorio() * k);
+    }
+
+    // Genera un valor para una variable sociodemográfica según su distribución.
+    generarValorSociodemografico(socio) {
+        const dist = socio.distribucion || 'normal';
+
+        // Tipos discretos → enteros (sin redondeo decimal)
+        if (dist === 'categorica') {
+            return this.generarCategoria(socio.minimo, socio.maximo);
+        }
+        if (dist === 'binaria') {
+            return this.generarBinaria(socio.promedio);
+        }
+        if (dist === 'conteo') {
+            return this.generarPoisson(socio.promedio);
+        }
+
+        // Tipos continuos → clamp al rango + redondeo según decimales
+        let valor;
+        if (dist === 'uniforme') {
+            valor = this.generarUniforme(socio.minimo, socio.maximo);
+        } else if (dist === 'asimetrica') {
+            valor = this.generarAsimetrico(socio.promedio, socio.desviacion);
+        } else {
+            valor = this.generarValorNormal(socio.promedio, socio.desviacion);
+        }
+
+        if (socio.minimo !== null && socio.maximo !== null) {
+            valor = Math.max(socio.minimo, Math.min(socio.maximo, valor));
+        }
+        const factor = Math.pow(10, socio.decimales);
+        return Math.round(valor * factor) / factor;
     }
 
     // ========================================

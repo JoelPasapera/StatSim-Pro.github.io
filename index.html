@@ -237,6 +237,7 @@
                             <thead>
                                 <tr>
                                     <th>Categoría</th>
+                                    <th>Distribución</th>
                                     <th>Promedio</th>
                                     <th>Desviación Estándar</th>
                                     <th>Mínimo</th>
@@ -250,6 +251,16 @@
                                 <tr class="fila-socio">
                                     <td>
                                         <input type="text" class="input input-sm" placeholder="Ej: Edad" aria-label="Categoría">
+                                    </td>
+                                    <td>
+                                        <select class="input input-sm" aria-label="Distribución">
+                                            <option value="normal">Normal</option>
+                                            <option value="uniforme">Uniforme</option>
+                                            <option value="asimetrica">Asimétrica</option>
+                                            <option value="conteo">Conteo (Poisson)</option>
+                                            <option value="binaria">Binaria (0/1)</option>
+                                            <option value="categorica">Categórica</option>
+                                        </select>
                                     </td>
                                     <td>
                                         <input type="number" class="input input-sm" placeholder="Ej: 20" step="0.01" aria-label="Promedio">
@@ -282,8 +293,11 @@
                         </table>
                     </div>
                     <p class="help-text" style="margin-top: 0.5rem;">
-                        <strong>Mín/Máx:</strong> Rango de valores posibles. <strong>Decimales:</strong> Precisión del
-                        valor (0-4 decimales). Si se deja vacío Mín/Máx, no se aplicarán límites.
+                        <strong>Distribución:</strong> <em>Normal</em> y <em>Asimétrica</em> usan Promedio y DE;
+                        <em>Uniforme</em> y <em>Categórica</em> usan Mín/Máx (la categórica genera niveles enteros
+                        equiprobables); <em>Conteo (Poisson)</em> usa el Promedio como tasa; <em>Binaria</em> usa el
+                        Promedio como proporción de unos (p. ej. 0.5). <strong>Mín/Máx:</strong> rango de valores.
+                        <strong>Decimales:</strong> precisión (0-4).
                     </p>
                 </div>
 
