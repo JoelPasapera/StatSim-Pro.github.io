@@ -309,8 +309,10 @@ function mostrarDatosCargados(datos) {
         datos
     );
 
-    // Poblar selectores de variables (solo columnas numéricas)
+    // Poblar selectores de variables: solo columnas numéricas y excluyendo el
+    // identificador (ID no es una variable de análisis).
     const columnasNumericas = columnas.filter(col => {
+        if (col === 'ID') return false;
         return typeof datos[0][col] === 'number' || !isNaN(parseFloat(datos[0][col]));
     });
 
@@ -321,19 +323,16 @@ function mostrarDatosCargados(datos) {
     select2.innerHTML = '<option value="">Seleccionar variable...</option>';
 
     columnasNumericas.forEach(col => {
-        if (typeof col !== "string") {
-            mostrarToast('Las columnas deben ser de tipo string', 'error');
-            return;
-        }
+        const nombre = col.trim();
 
         const option1 = document.createElement('option');
-        option1.value = col.trim();
-        option1.textContent = col.trim();
+        option1.value = nombre;
+        option1.textContent = nombre;
         select1.appendChild(option1);
 
         const option2 = document.createElement('option');
-        option2.value = col.trim();
-        option2.textContent = col.trim();
+        option2.value = nombre;
+        option2.textContent = nombre;
         select2.appendChild(option2);
     });
 
