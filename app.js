@@ -379,7 +379,7 @@ function ejecutarAnalisis() {
             mostrarPruebasNormalidad(var1, var2, resultado);
             mostrarCorrelacion(var1, var2, resultado);
             mostrarDecision(var1, var2, resultado);
-            mostrarDiscusion(var1, var2, resultado);
+            mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto);
 
             // Mostrar referencias bibliográficas
             mostrarReferencias(var1, var2, resultado);
@@ -637,11 +637,11 @@ function mostrarDecision(var1, var2, resultado) {
     container.style.display = 'block';
 }
 
-function mostrarDiscusion(var1, var2, resultado) {
+function mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto) {
     const container = document.getElementById('resultadosDiscusion');
     if (!container) return;
 
-    const discusion = AnalizadorEstadistico.generarDiscusion(var1, var2, resultado);
+    const discusion = AnalizadorEstadistico.generarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto);
 
     const html = `
         <div class="result-section">
