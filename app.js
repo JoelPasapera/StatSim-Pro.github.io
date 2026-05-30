@@ -195,7 +195,7 @@ function mostrarPreview(datos) {
     container.style.display = 'block';
 
     // Scroll suave hacia el preview
-    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    desplazarHacia(container);
 }
 
 function habilitarDescargaCSV() {
@@ -345,7 +345,7 @@ function mostrarDatosCargados(datos) {
     seleccionContainer.style.display = 'block';
 
     // Scroll
-    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    desplazarHacia(container);
 }
 
 function ejecutarAnalisis() {
@@ -834,6 +834,13 @@ function renderizarTablaDatos(thead, tbody, datos, maxFilas = 10) {
     }
 
     return columnas;
+}
+
+// Desplaza la vista hacia un elemento respetando la preferencia de movimiento
+// reducido del sistema (accesibilidad).
+function desplazarHacia(elemento) {
+    const movimientoReducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    elemento.scrollIntoView({ behavior: movimientoReducido ? 'auto' : 'smooth', block: 'nearest' });
 }
 
 let temporizadorToast = null;

@@ -59,6 +59,8 @@ class ScientificCharts {
             .attr('width', this.config.width)
             .attr('height', this.config.height)
             .attr('font-family', this.config.fontFamily)
+            // role="img" + aria-label (con el título) para lectores de pantalla.
+            .attr('role', 'img')
             .style('background-color', this.config.backgroundColor);
 
         // Añadir definiciones para gradientes y patrones
@@ -139,6 +141,7 @@ class ScientificCharts {
 
         // Título
         if (title) {
+            this.svg.attr('aria-label', title);
             this.svg.append('text')
                 .attr('x', this.config.width / 2)
                 .attr('y', 25)
