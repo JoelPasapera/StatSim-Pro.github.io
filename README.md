@@ -1,4 +1,5 @@
 # StatSim Pro - Simulador y Analizador Estadístico
+---
 
 ## 📊 Descripción
 
