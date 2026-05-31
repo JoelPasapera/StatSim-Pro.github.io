@@ -50,12 +50,11 @@ Los resultados arrojados por **StatSim Pro** fueron comparados directamente con 
 ### Capturas de pantalla
 
 **Correlación de Spearman — StatSim Pro vs. SPSS**
-
-![Spearman StatSim Pro vs SPSS](./docs/validacion_spearman.png)
+![image](https://github.com/JoelPasapera/StatSim-Pro.github.io/blob/fec7b57c8f97627c3b8cb247d32ca96407bb5d67/Evidencia%20%5BSPSS%5D%20-%20Correlaci%C3%B3n.png)
 
 **Pruebas de normalidad — StatSim Pro vs. SPSS**
 
-![Normalidad StatSim Pro vs SPSS](./docs/validacion_normalidad.png)
+![image](https://github.com/JoelPasapera/StatSim-Pro.github.io/blob/fec7b57c8f97627c3b8cb247d32ca96407bb5d67/Evidencia%20%5BSPSS%5D%20-%20Prueba%20de%20normalidad.png)
 
 
 ## 📚 Motor estadístico implementado desde cero
