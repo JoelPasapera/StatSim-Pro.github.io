@@ -4,7 +4,7 @@
 
 StatSim Pro es una aplicación web profesional para simular bases de datos estadísticos y realizar análisis correlacionales al estilo SPSS. Diseñada especialmente para estudiantes e investigadores en psicología y ciencias sociales.
 
-&gt; Analizador estadístico profesional implementado 100 % en el navegador. Sin frameworks pesados, sin backend, sin instalación.
+&gt; Implementado 100 % en el navegador. Sin frameworks pesados, sin backend, sin instalación. Pruebalo aqui 👇!
 
 [![GitHub Pages](https://img.shields.io/badge/🌐_Demo_Online-StatSim_Pro-2E5BBA?style=for-the-badge)](https://joelpasapera.github.io/StatSim-Pro.github.io/)
 
