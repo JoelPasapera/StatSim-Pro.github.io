@@ -299,6 +299,15 @@ class GeneradorDatos {
             // Valores normales correlacionados (driver) por variable, si aplica
             const drivers = hayCorrelaciones ? this.generarVectorCorrelacionado() : {};
 
+            if (i < 20) {
+                console.log(
+                    // drivers['escala:WAIS'],
+                    drivers['escala:W'],
+                    // drivers['escala:MSCEIT']
+                    drivers['escala:M']
+                );
+            }
+
             // Generar datos sociodemográficos según su distribución
             this.configuracion.sociodemograficos.forEach(socio => {
                 const driver = drivers['socio:' + socio.categoriaCorta];
@@ -328,6 +337,10 @@ class GeneradorDatos {
 
                 // Agregar total
                 participante[`Total_${prueba.nombreCorto}`] = puntajes.total;
+            
+            // Para depuración: mostrar los drivers usados para este participante
+            console.table(drivers);
+
             });
 
             // Aplicar diferencias por grupo (desplazan la media según el grupo)
@@ -385,10 +398,13 @@ class GeneradorDatos {
         }
 
         const totalReal = items.reduce((a, b) => a + b, 0);
+
         return {
             items: items,
-            total: totalReal
+            total: totalReal,
+            factorUtilizado: F
         };
+        
     }
 
     // Valor normal estándar N(0,1) por el método de Box-Muller.
@@ -530,7 +546,7 @@ class GeneradorDatos {
                 lambda = Math.sqrt(Math.max(0, Math.min(0.999, rMedia)));
             }
             const c = lambda > 0 ? (lambda * Math.sqrt(k)) / Math.sqrt(1 + (k - 1) * lambda * lambda) : 0;
-            variables.push({ tipo: 'escala', clave: prueba.nombre, nombre: prueba.nombre, c: c });
+            variables.push({ tipo: 'escala', clave: prueba.nombreCorto, nombre: prueba.nombre, c: c });
         });
 
         this.configuracion.sociodemograficos.forEach(socio => {
@@ -548,6 +564,16 @@ class GeneradorDatos {
         (this.configuracion.correlaciones || []).forEach(({ a, b, r }) => {
             const i = indicePorNombre[a];
             const j = indicePorNombre[b];
+
+            console.log(
+                "CORRELACION",
+                a,
+                b,
+                i,
+                j,
+                r
+            );
+
             if (i === undefined || j === undefined || i === j) return;
             // Desatenuar por la fiabilidad de cada total (c = 1 para continuas)
             const ci = variables[i].c || 1e-6;
@@ -556,10 +582,16 @@ class GeneradorDatos {
             rFactor = Math.max(-0.99, Math.min(0.99, rFactor));
             R[i][j] = rFactor;
             R[j][i] = rFactor;
+
+            console.table(R);
         });
 
         this.correlVariables = variables;
         this.correlL = m > 0 ? this.descomposicionCholesky(R) : [];
+
+        // Para depuración: mostrar variables correlacionables, matriz de correlaciones y su Cholesky
+        console.table(this.correlVariables);
+
     }
 
     /**
