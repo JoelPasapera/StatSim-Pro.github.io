@@ -530,7 +530,7 @@ class GeneradorDatos {
                 lambda = Math.sqrt(Math.max(0, Math.min(0.999, rMedia)));
             }
             const c = lambda > 0 ? (lambda * Math.sqrt(k)) / Math.sqrt(1 + (k - 1) * lambda * lambda) : 0;
-            variables.push({ tipo: 'escala', clave: prueba.nombreCorto, nombre: prueba.nombre, c: c });
+            variables.push({ tipo: 'escala', clave: prueba.nombre, nombre: prueba.nombre, c: c });
         });
 
         this.configuracion.sociodemograficos.forEach(socio => {
