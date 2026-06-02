@@ -1,6 +1,5 @@
 // ========================================
-// ANALIZADOR ESTADÍSTICO PROFESIONAL PhD
-// Sistema Avanzado de Análisis Correlacional
+// ANALIZADOR ESTADÍSTICO
 // ========================================
 
 class AnalizadorEstadisticoProfesional {
