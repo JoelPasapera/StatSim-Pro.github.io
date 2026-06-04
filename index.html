@@ -140,12 +140,31 @@
                         </div>
                     </div>
 
+                    <div class="orden-guia" role="note" aria-label="Orden para completar los datos">
+                        <span class="orden-guia-titulo">Completa en este orden:</span>
+                        <span class="orden-paso"><span class="orden-num">1</span> Nombre</span>
+                        <span class="orden-flecha" aria-hidden="true">→</span>
+                        <span class="orden-paso"><span class="orden-num">2</span> N° de ítems</span>
+                        <span class="orden-flecha" aria-hidden="true">→</span>
+                        <span class="orden-paso"><span class="orden-num">3</span> Mín por ítem</span>
+                        <span class="orden-flecha" aria-hidden="true">→</span>
+                        <span class="orden-paso"><span class="orden-num">4</span> Máx por ítem</span>
+                        <span class="orden-flecha" aria-hidden="true">→</span>
+                        <span class="orden-paso"><span class="orden-num">5</span> α objetivo <em>(opcional)</em></span>
+                        <span class="orden-flecha" aria-hidden="true">→</span>
+                        <span class="orden-paso"><span class="orden-num">6</span> Media</span>
+                        <span class="orden-flecha" aria-hidden="true">→</span>
+                        <span class="orden-paso"><span class="orden-num">7</span> Desviación estándar</span>
+                        <span class="orden-nota">Cada campo se desbloquea al completar el anterior. La Distribución y α son opcionales.</span>
+                    </div>
+
                     <div class="table-container">
                         <table class="table" id="tablaPruebas">
                             <thead>
                                 <tr>
                                     <th>Nombre de la Prueba</th>
                                     <th>N° de Ítems</th>
+                                    <th>Distribución</th>
                                     <th>Media (M)</th>
                                     <th>Desviación Estándar (DE)</th>
                                     <th>Mín por Ítem</th>
@@ -162,23 +181,30 @@
                                             maxlength="100" aria-label="Nombre de la prueba">
                                     </td>
                                     <td>
-                                        <input type="number" class="input input-sm" placeholder="Ej: 60" min="1" aria-label="Número de ítems">
+                                        <input type="number" class="input input-sm" placeholder="Ej: 60" min="1" aria-label="Número de ítems" disabled>
                                     </td>
                                     <td>
-                                        <input type="number" class="input input-sm" placeholder="Ej: 100" step="0.01" aria-label="Media (M)">
+                                        <select class="input input-sm" aria-label="Distribución">
+                                            <option value="normal">Normal</option>
+                                            <option value="uniforme">Uniforme</option>
+                                            <option value="asimetrica">Asimétrica</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="input input-sm" placeholder="Ej: 100" step="0.01" aria-label="Media (M)" disabled>
                                     </td>
                                     <td>
                                         <input type="number" class="input input-sm" placeholder="Ej: 15" step="0.01"
-                                            min="0.01" aria-label="Desviación estándar (DE)">
+                                            min="0.01" aria-label="Desviación estándar (DE)" disabled>
                                     </td>
                                     <td>
-                                        <input type="number" class="input input-sm" placeholder="Ej: 0" step="1" aria-label="Mínimo por ítem">
+                                        <input type="number" class="input input-sm" placeholder="Ej: 0" step="1" aria-label="Mínimo por ítem" disabled>
                                     </td>
                                     <td>
-                                        <input type="number" class="input input-sm" placeholder="Ej: 5" step="1" aria-label="Máximo por ítem">
+                                        <input type="number" class="input input-sm" placeholder="Ej: 5" step="1" aria-label="Máximo por ítem" disabled>
                                     </td>
                                     <td>
-                                        <input type="number" class="input input-sm" placeholder="Ej: 0.85" step="0.01" min="0" max="0.99" aria-label="Alfa de Cronbach objetivo">
+                                        <input type="number" class="input input-sm" placeholder="Ej: 0.85" step="0.01" min="0" max="0.99" aria-label="Alfa de Cronbach objetivo" disabled>
                                     </td>
                                     <td>
                                         <button type="button" class="btn-icon btn-delete" title="Eliminar" aria-label="Eliminar fila">
@@ -193,58 +219,61 @@
                             </tbody>
                         </table>
                     </div>
-                    
-                    <!-- La sección guia de que colocar en cada apartado de la sección pruebas -->
-                    <div class="help-text" style="margin-top: 0.5rem;">
-                        <p>
-                            <strong>1. Nombre de la prueba:</strong>
-                            Define el nombre de la prueba psicométrica
-                        </p>
-                        
-                        <p>
-                            <strong>2. Media (TOTAL):</strong>
-                            Define el rango de valores posibles para cada ítem individual.
-                            Es decir, representa la variabilidad esperada de los puntajes totales de la escala alrededor de la media.
-                        </p>
-                    
-                        <p>
-                            Por ejemplo, un valor de DE pequeño indica que la mayoría de los participantes obtendrán puntajes cercanos al promedio.
-                        </p>
-                    
-                        <p>
-                            <strong>3. Desviación estandar (TOTAL):</strong>
-                            Define la desviación estandar de la escala total (No por item).
-                            Es decir, representa el promedio esperado del puntaje total de la escala, no de los ítems individuales.
-                        </p>
-                    
-                        <p>
-                            (Ej: Quiero que los puntajes TOTALES se dispersen aproximadamente 12 puntos alrededor de la media).
-                        </p>
-                    
-                        <p>
-                            <strong>4. ¿Como se usan ambos?:</strong>
-                            Ejemplo: Si colocas 'Media' de '80' y 'desviación estandar' de '12'
-                            es como decirle al programa: Quiero que el puntaje TOTAL de esta prueba tenga una media de 80 puntos
-                            y una desviación estándar de 12 puntos). No significa: "Quiero que cada ítem tenga media 80.".
-                        </p>
-                    
-                        <p>
-                            <strong>5. Mín/Máx por Ítem:</strong>
-                            Define el rango de valores posibles para cada ítem individual
-                            (Ej: escala Likert 0-5, 1-7, etc.). Si se deja vacío, se usa 1-7.
-                        </p>
-                    
-                        <p>
-                            <strong>6. α objetivo:</strong>
-                            consistencia interna deseada de la escala (0–0.99); con un valor
-                            (p. ej. 0.85) los ítems comparten un factor común y la escala tendrá esa fiabilidad.
-                            Vacío o 0 = ítems independientes.
-                        </p>
-                    
+                    <div class="leyenda-pruebas">
+                        <p class="leyenda-titulo">Guía de cada campo:</p>
+                        <ol>
+                            <li>
+                                <strong>Nombre de la prueba:</strong> define el nombre del instrumento psicométrico
+                                (Ej: "WAIS-IV", "TMMS-24"). Es el primer campo: al completarlo se desbloquean los demás.
+                            </li>
+                            <li>
+                                <strong>N° de ítems:</strong> cantidad de ítems (preguntas) del instrumento, según su
+                                ficha técnica. Es un valor fijo, conocido a priori, e invariable de aplicación en
+                                aplicación.
+                            </li>
+                            <li>
+                                <strong>Mín / Máx por ítem:</strong> define el rango de valores posibles de <em>cada ítem
+                                individual</em> (Ej: escala Likert 0–5, 1–7, etc.), también fijo según la ficha técnica
+                                del instrumento. Son obligatorios, y juntos determinan el rango alcanzable del puntaje
+                                TOTAL: desde <em>N° de ítems × Mín</em> hasta <em>N° de ítems × Máx</em>.
+                            </li>
+                            <li>
+                                <strong>α objetivo (opcional):</strong> consistencia interna deseada de la escala
+                                (0–0.99). Con un valor (Ej: 0.85) los ítems comparten un factor común y la escala tendrá
+                                aproximadamente esa fiabilidad. Vacío o 0 = ítems independientes.
+                            </li>
+                            <li>
+                                <strong>Distribución:</strong> forma del puntaje TOTAL. <em>Normal</em> = campana
+                                (necesaria para análisis paramétricos como Pearson); <em>Uniforme</em> = plana;
+                                <em>Asimétrica</em> = con cola positiva (efecto suelo, típico de escalas clínicas).
+                            </li>
+                            <li>
+                                <strong>Media (TOTAL):</strong> define el promedio esperado del puntaje TOTAL de la
+                                escala (la suma de los ítems de cada participante), <em>no</em> de los ítems
+                                individuales. <strong>Regla de coherencia:</strong> como el total es una suma, la Media
+                                solo puede estar entre <em>N° de ítems × Mín</em> y <em>N° de ítems × Máx</em>; la página
+                                calcula ese rango en vivo y no permite valores fuera de él. (Ej: si el Mín por ítem es 1,
+                                la Media nunca puede ser menor que el número de ítems, porque cada ítem aporta al menos
+                                1 punto al total.)
+                            </li>
+                            <li>
+                                <strong>Desviación estándar (TOTAL):</strong> define la dispersión esperada de los
+                                puntajes TOTALES alrededor de la Media (no por ítem). Un valor de DE pequeño indica que
+                                la mayoría de los participantes obtendrá puntajes cercanos al promedio. (Ej: "quiero que
+                                los puntajes TOTALES se dispersen aproximadamente 12 puntos alrededor de la media" → DE
+                                = 12.) La página muestra su rango recomendado: el <em>máximo</em> evita que la campana se
+                                recorte contra los topes del total, y el <em>mínimo</em> (según el tamaño muestral N)
+                                evita que el total, al ser una suma de enteros, salga "escalonado" y no pase la prueba de
+                                normalidad.
+                            </li>
+                            <li>
+                                <strong>¿Cómo se usan Media y DE juntas?</strong> Ejemplo: si colocas Media = 80 y
+                                Desviación estándar = 12, le dices al programa: "quiero que el puntaje TOTAL de esta
+                                prueba tenga una media de 80 puntos y una desviación estándar de 12 puntos". <em>No</em>
+                                significa "quiero que cada ítem tenga media 80".
+                            </li>
+                        </ol>
                     </div>
-                    
-
-                    
                 </div>
 
                 <!-- Tabla II: Datos Sociodemográficos -->
