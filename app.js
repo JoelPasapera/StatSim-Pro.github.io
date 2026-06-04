@@ -86,6 +86,9 @@ function configurarGenerador() {
     tbodyPruebas.addEventListener('input', function (e) {
         const fila = e.target.closest && e.target.closest('.fila-prueba');
         if (fila) actualizarLimitesPrueba(fila);
+        if (e.target.getAttribute && e.target.getAttribute('aria-label') === 'Nombre de la prueba') {
+            actualizarListaPruebas();
+        }
     });
     tbodyPruebas.addEventListener('change', ajustarPruebaEnCambio);
     actualizarTodasLasPruebas(); // pase inicial sobre la fila de ejemplo
@@ -99,6 +102,14 @@ function configurarGenerador() {
             eliminarFilaSocio(e.target.closest('tr'));
         }
     });
+
+    // Sociodemográficos: los campos se desbloquean al escribir la Categoría
+    const tbodySocio = document.getElementById('bodySocio');
+    tbodySocio.addEventListener('input', function (e) {
+        const fila = e.target.closest && e.target.closest('.fila-socio');
+        if (fila) actualizarBloqueoSocio(fila);
+    });
+    actualizarTodosSocio();
 
     // Correlaciones objetivo
     const btnCorrelacion = document.getElementById('btnAgregarCorrelacion');
@@ -178,7 +189,8 @@ function agregarFilaDiferencia() {
 function obtenerVariablesCorrelacionables() {
     const nombres = [];
     document.querySelectorAll('#bodyPruebas .fila-prueba').forEach(fila => {
-        const nombre = fila.querySelector('input').value.trim();
+        const inputEscala = fila.querySelector('[aria-label="Nombre de la escala"]');
+        const nombre = inputEscala ? inputEscala.value.trim() : '';
         if (nombre) nombres.push(nombre);
     });
     document.querySelectorAll('#bodySocio .fila-socio').forEach(fila => {
@@ -230,7 +242,8 @@ function agregarFilaCorrelacion() {
 // ============================================================
 function inputsPrueba(fila) {
     return {
-        nombre: fila.querySelector('[aria-label="Nombre de la prueba"]'),
+        prueba: fila.querySelector('[aria-label="Nombre de la prueba"]'),
+        escala: fila.querySelector('[aria-label="Nombre de la escala"]'),
         items: fila.querySelector('[aria-label="Número de ítems"]'),
         media: fila.querySelector('[aria-label="Media (M)"]'),
         de: fila.querySelector('[aria-label="Desviación estándar (DE)"]'),
@@ -268,13 +281,15 @@ function actualizarLimitesPrueba(fila) {
     const max = parseFloat(io.max.value);
 
     // ACTIVACIÓN PROGRESIVA en el orden de la guía:
-    // Nombre → N° ítems → Mín → Máx → α (opcional) → Media → DE
-    const nombreOk = !!(io.nombre && io.nombre.value.trim() !== '');
-    const itemsOk = nombreOk && Number.isFinite(k) && k >= 1;
+    // Prueba → Escala → N° ítems → Mín → Máx → α (opcional) → Media → DE
+    const pruebaOk = !!(io.prueba && io.prueba.value.trim() !== '');
+    const escalaOk = pruebaOk && !!(io.escala && io.escala.value.trim() !== '');
+    const itemsOk = escalaOk && Number.isFinite(k) && k >= 1;
     const minOk = itemsOk && Number.isFinite(min);
     const maxOk = minOk && Number.isFinite(max) && max > min;
 
-    if (io.items) io.items.disabled = !nombreOk;
+    if (io.escala) io.escala.disabled = !pruebaOk;
+    if (io.items) io.items.disabled = !escalaOk;
     if (io.min) io.min.disabled = !itemsOk;
     if (io.max) io.max.disabled = !minOk;
     if (io.alfa) io.alfa.disabled = !maxOk; // α se activa tras Máx (es opcional)
@@ -292,7 +307,8 @@ function actualizarLimitesPrueba(fila) {
     if (!maxOk) {
         io.media.disabled = true;
         io.de.disabled = true;
-        if (!nombreOk) pMedia.textContent = 'Bloqueado: empieza por el Nombre de la prueba';
+        if (!pruebaOk) pMedia.textContent = 'Bloqueado: empieza por el nombre de la Prueba';
+        else if (!escalaOk) pMedia.textContent = 'Bloqueado: completa el nombre de la Escala';
         else if (!itemsOk) pMedia.textContent = 'Bloqueado: completa el N° de ítems';
         else if (!minOk) pMedia.textContent = 'Bloqueado: completa el Mín por ítem';
         else pMedia.textContent = 'Bloqueado: completa el Máx por ítem (debe ser mayor que el Mín)';
@@ -382,6 +398,22 @@ function actualizarLimitesPrueba(fila) {
 
 function actualizarTodasLasPruebas() {
     document.querySelectorAll('#bodyPruebas .fila-prueba').forEach(actualizarLimitesPrueba);
+    actualizarListaPruebas();
+}
+
+// Sugerencias del campo Prueba: nombres ya usados en otras filas, para agrupar
+// escalas bajo el mismo test sin errores de tipeo.
+function actualizarListaPruebas() {
+    const dl = document.getElementById('listaPruebas');
+    if (!dl) return;
+    const nombres = new Set();
+    document.querySelectorAll('#bodyPruebas .fila-prueba [aria-label="Nombre de la prueba"]').forEach(i => {
+        const v = i.value.trim();
+        if (v) nombres.add(v);
+    });
+    dl.innerHTML = Array.from(nombres)
+        .map(n => `<option value="${n.replace(/"/g, '&quot;')}"></option>`)
+        .join('');
 }
 
 // Al salir de un campo, ajusta el valor a su rango permitido.
@@ -461,6 +493,20 @@ function eliminarFilaPrueba(fila) {
     mostrarToast('Fila eliminada', 'success');
 }
 
+// Sociodemográficos: todo se desbloquea al escribir la Categoría (paso 1)
+function actualizarBloqueoSocio(fila) {
+    const inputs = fila.querySelectorAll('input');
+    const select = fila.querySelector('select');
+    if (!inputs.length) return;
+    const categoriaOk = inputs[0].value.trim() !== '';
+    for (let i = 1; i < inputs.length; i++) inputs[i].disabled = !categoriaOk;
+    if (select) select.disabled = !categoriaOk;
+}
+
+function actualizarTodosSocio() {
+    document.querySelectorAll('#bodySocio .fila-socio').forEach(actualizarBloqueoSocio);
+}
+
 function agregarFilaSocio() {
     const tbody = document.getElementById('bodySocio');
     const nuevaFila = tbody.querySelector('.fila-socio').cloneNode(true);
@@ -471,6 +517,7 @@ function agregarFilaSocio() {
     });
 
     tbody.appendChild(nuevaFila);
+    actualizarBloqueoSocio(nuevaFila);
     mostrarToast('Variable agregada', 'success');
 }
 
@@ -1923,23 +1970,24 @@ function exportarConfigPruebas() {
         }
 
         // Crear CSV con encabezados
-        let csv = 'Nombre,NumItems,Distribucion,Media,DE,MinItem,MaxItem,Alfa\n';
+        let csv = 'Prueba,Escala,NumItems,Distribucion,Media,DE,MinItem,MaxItem,Alfa\n';
 
         filas.forEach(fila => {
             const inputs = fila.querySelectorAll('input');
             const selectDist = fila.querySelector('select');
             const distribucion = selectDist ? selectDist.value : 'normal';
-            const nombre = inputs[0].value.trim() || '';
-            const numItems = inputs[1].value || '';
-            const media = inputs[2].value || '';
-            const de = inputs[3].value || '';
-            const min = inputs[4].value || '';
-            const max = inputs[5].value || '';
-            const alfa = inputs[6] ? (inputs[6].value || '') : '';
+            const prueba = inputs[0].value.trim() || '';
+            const escala = inputs[1].value.trim() || '';
+            const numItems = inputs[2].value || '';
+            const media = inputs[3].value || '';
+            const de = inputs[4].value || '';
+            const min = inputs[5].value || '';
+            const max = inputs[6].value || '';
+            const alfa = inputs[7] ? (inputs[7].value || '') : '';
 
             // Escapar valores con comas
-            const nombreEscapado = nombre.includes(',') ? `"${nombre}"` : nombre;
-            csv += `${nombreEscapado},${numItems},${distribucion},${media},${de},${min},${max},${alfa}\n`;
+            const esc = v => (v.includes(',') ? `"${v}"` : v);
+            csv += `${esc(prueba)},${esc(escala)},${numItems},${distribucion},${media},${de},${min},${max},${alfa}\n`;
         });
 
         // Descargar archivo
@@ -1968,12 +2016,16 @@ function importarConfigPruebas(e) {
 
             // Verificar encabezados
             const encabezados = lineas[0].toLowerCase();
-            if (!encabezados.includes('nombre') || !encabezados.includes('numitems')) {
-                mostrarToast('El archivo CSV no tiene el formato correcto. Encabezados esperados: Nombre,NumItems,Distribucion,Media,DE,MinItem,MaxItem,Alfa', 'error');
+            if (!encabezados.includes('numitems')) {
+                mostrarToast('El archivo CSV no tiene el formato correcto. Encabezados esperados: Prueba,Escala,NumItems,Distribucion,Media,DE,MinItem,MaxItem,Alfa', 'error');
                 return;
             }
 
-            // Compatibilidad: los CSV antiguos no tienen columna Distribucion.
+            // Compatibilidad de formatos:
+            //  nuevo:      Prueba,Escala,NumItems,Distribucion,Media,DE,MinItem,MaxItem,Alfa
+            //  intermedio: Nombre,NumItems,Distribucion,Media,DE,MinItem,MaxItem,Alfa
+            //  antiguo:    Nombre,NumItems,Media,DE,MinItem,MaxItem,Alfa
+            const tienePruebaEscala = encabezados.includes('escala');
             const tieneDistribucion = encabezados.includes('distribucion');
 
             // Limpiar tabla actual
@@ -1986,31 +2038,45 @@ function importarConfigPruebas(e) {
                 if (!linea) continue;
 
                 const valores = parsearLineaCSV(linea);
+                if (valores.length < 4) continue;
 
-                if (valores.length >= 4) {
-                    if (tieneDistribucion) {
-                        agregarFilaPruebaConDatos({
-                            nombre: valores[0] || '',
-                            numItems: valores[1] || '',
-                            distribucion: valores[2] || 'normal',
-                            media: valores[3] || '',
-                            de: valores[4] || '',
-                            min: valores[5] || '',
-                            max: valores[6] || '',
-                            alfa: valores[7] || ''
-                        });
-                    } else {
-                        agregarFilaPruebaConDatos({
-                            nombre: valores[0] || '',
-                            numItems: valores[1] || '',
-                            distribucion: 'normal',
-                            media: valores[2] || '',
-                            de: valores[3] || '',
-                            min: valores[4] || '',
-                            max: valores[5] || '',
-                            alfa: valores[6] || ''
-                        });
-                    }
+                if (tienePruebaEscala) {
+                    agregarFilaPruebaConDatos({
+                        prueba: valores[0] || '',
+                        nombre: valores[1] || '',
+                        numItems: valores[2] || '',
+                        distribucion: valores[3] || 'normal',
+                        media: valores[4] || '',
+                        de: valores[5] || '',
+                        min: valores[6] || '',
+                        max: valores[7] || '',
+                        alfa: valores[8] || ''
+                    });
+                } else if (tieneDistribucion) {
+                    // Formato sin columna Prueba: usar el mismo nombre como prueba y escala
+                    agregarFilaPruebaConDatos({
+                        prueba: valores[0] || '',
+                        nombre: valores[0] || '',
+                        numItems: valores[1] || '',
+                        distribucion: valores[2] || 'normal',
+                        media: valores[3] || '',
+                        de: valores[4] || '',
+                        min: valores[5] || '',
+                        max: valores[6] || '',
+                        alfa: valores[7] || ''
+                    });
+                } else {
+                    agregarFilaPruebaConDatos({
+                        prueba: valores[0] || '',
+                        nombre: valores[0] || '',
+                        numItems: valores[1] || '',
+                        distribucion: 'normal',
+                        media: valores[2] || '',
+                        de: valores[3] || '',
+                        min: valores[4] || '',
+                        max: valores[5] || '',
+                        alfa: valores[6] || ''
+                    });
                 }
             }
 
@@ -2038,7 +2104,8 @@ function agregarFilaPruebaConDatos(datos) {
     const opcion = (valor, etiqueta) => `<option value="${valor}"${dist === valor ? ' selected' : ''}>${etiqueta}</option>`;
 
     nuevaFila.innerHTML = `
-        <td><input type="text" class="input input-sm" placeholder="Ej: WAIS-IV" maxlength="100" value="${datos.nombre}" aria-label="Nombre de la prueba"></td>
+        <td><input type="text" class="input input-sm" placeholder="Ej: WAIS-IV" maxlength="100" value="${datos.prueba || ''}" aria-label="Nombre de la prueba" list="listaPruebas"></td>
+        <td><input type="text" class="input input-sm" placeholder="Ej: Memoria de trabajo" maxlength="100" value="${datos.nombre}" aria-label="Nombre de la escala"></td>
         <td><input type="number" class="input input-sm" placeholder="Ej: 60" min="1" value="${datos.numItems}" aria-label="Número de ítems"></td>
         <td>
             <select class="input input-sm" aria-label="Distribución">
@@ -2197,6 +2264,7 @@ function agregarFilaSocioConDatos(datos) {
     `;
 
     tbody.appendChild(nuevaFila);
+    actualizarBloqueoSocio(nuevaFila);
 }
 
 // ========================================
