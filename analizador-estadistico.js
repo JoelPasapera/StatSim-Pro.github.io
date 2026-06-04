@@ -181,101 +181,45 @@ class AnalizadorEstadisticoProfesional {
 
     // ========================================
     // GENERACIÓN DE MARCO METODOLÓGICO
+    // (delegado) La redacción vive en InterpretacionesEstadisticas; aquí solo
+    // se aportan los datos que dependen del estado del analizador (dimensiones
+    // configuradas y configuración de la investigación).
     // ========================================
 
-    /**
-     * Genera pregunta de investigación
-     */
+    _interpretaciones() {
+        const I = (typeof InterpretacionesEstadisticas !== 'undefined')
+            ? InterpretacionesEstadisticas
+            : (typeof window !== 'undefined' ? window.InterpretacionesEstadisticas : null);
+        if (!I) {
+            throw new Error('El módulo InterpretacionesEstadisticas no está cargado (requerido para generar textos)');
+        }
+        return I;
+    }
+
     generarPreguntaInvestigacion(var1, var2, unidadAnalisis, lugarContexto) {
-
-        if (!unidadAnalisis || !lugarContexto) {
-            return `¿Cuál es la relación entre ${var1} y ${var2}?`;
-        }
-
-        return `¿Cuál es la relación entre ${var1} y ${var2} en ${unidadAnalisis} de ${lugarContexto}?`;
+        return this._interpretaciones().generarPreguntaInvestigacion(var1, var2, unidadAnalisis, lugarContexto);
     }
 
-    /**
-     * Genera objetivo general
-     */
     generarObjetivoGeneral(var1, var2, unidadAnalisis, lugarContexto) {
-
-        if (!unidadAnalisis || !lugarContexto) {
-            return `Determinar la relación entre ${var1} y ${var2}.`;
-        }
-
-        return `Determinar la relación entre ${var1} y ${var2} en ${unidadAnalisis} de ${lugarContexto}.`;
+        return this._interpretaciones().generarObjetivoGeneral(var1, var2, unidadAnalisis, lugarContexto);
     }
 
-    /**
-     * Genera objetivos específicos basados en dimensiones
-     */
     generarObjetivosEspecificos(var1, var2) {
-        const dim1 = this.obtenerDimensiones(var1);
-        const dim2 = this.obtenerDimensiones(var2);
-
-        const objetivos = [];
-
-        if (dim1 && dim2) {
-            // Ambas tienen dimensiones - objetivos cruzados
-            Object.keys(dim1).forEach(d1 => {
-                Object.keys(dim2).forEach(d2 => {
-                    objetivos.push(
-                        `Establecer el vínculo entre '${d1}' de ${var1} y '${d2}' de ${var2}.`
-                    );
-                });
-            });
-        } else if (dim1) {
-            // Solo var1 tiene dimensiones
-            Object.keys(dim1).forEach(d1 => {
-                objetivos.push(
-                    `Establecer el vínculo entre '${d1}' de ${var1} y ${var2}.`
-                );
-            });
-        } else if (dim2) {
-            // Solo var2 tiene dimensiones
-            Object.keys(dim2).forEach(d2 => {
-                objetivos.push(
-                    `Establecer el vínculo entre ${var1} y '${d2}' de ${var2}.`
-                );
-            });
-        } else {
-            // Ninguna tiene dimensiones
-            objetivos.push(`Establecer el vínculo entre ${var1} y ${var2}.`);
-        }
-
-        return objetivos;
+        return this._interpretaciones().generarObjetivosEspecificos(
+            var1, var2, this.obtenerDimensiones(var1), this.obtenerDimensiones(var2)
+        );
     }
 
-    /**
-     * Genera hipótesis
-     */
     generarHipotesis(var1, var2, unidadAnalisis, lugarContexto) {
-
-        let contexto = '';
-        if (unidadAnalisis && lugarContexto) {
-            contexto = ` en ${unidadAnalisis} de ${lugarContexto}`;
-        }
-
-        return {
-            hipotesisInvestigador: `Existe una relación estadísticamente significativa entre ${var1} y ${var2}${contexto}.`,
-            hipotesisNula: `No existe una relación estadísticamente significativa entre ${var1} y ${var2}${contexto}.`,
-            hipotesisAlterna: `Sí existe una relación estadísticamente significativa entre ${var1} y ${var2}${contexto}.`
-        };
+        return this._interpretaciones().generarHipotesis(var1, var2, unidadAnalisis, lugarContexto);
     }
 
-    /**
-     * Genera marco metodológico completo
-     */
     generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto) {
-
-        return {
-            preguntaInvestigacion: this.generarPreguntaInvestigacion(var1, var2, unidadAnalisis, lugarContexto),
-            objetivoGeneral: this.generarObjetivoGeneral(var1, var2, unidadAnalisis, lugarContexto),
-            objetivosEspecificos: this.generarObjetivosEspecificos(var1, var2, unidadAnalisis, lugarContexto),
-            hipotesis: this.generarHipotesis(var1, var2, unidadAnalisis, lugarContexto),
+        return this._interpretaciones().generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto, {
+            dimensiones1: this.obtenerDimensiones(var1),
+            dimensiones2: this.obtenerDimensiones(var2),
             configuracion: this.configuracionInvestigacion
-        };
+        });
     }
 
     // ========================================
@@ -1661,113 +1605,17 @@ class AnalizadorEstadisticoProfesional {
     // ========================================
 
     generarDiscusion(var1, var2, resultadoCorrelacion, unidadAnalisis, lugarContexto) {
-        const marco = this.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
-        // alpha debe omitirse aquí para que use el nivel de significancia configurado.
-        // NO pasar unidadAnalisis/lugarContexto: el 2º parámetro es alpha y un string
-        // rompería la comparación p < alpha (siempre daría "no rechazar").
+        // (delegado) alpha debe omitirse en pruebaHipotesis para que use el
+        // nivel de significancia configurado. NO pasar unidadAnalisis como 2º
+        // parámetro: es alpha y un string rompería la comparación p < alpha.
         const prueba = this.pruebaHipotesis(resultadoCorrelacion);
-        const config = this.configuracionInvestigacion;
-
-        let contexto = '';
-        if (unidadAnalisis && lugarContexto) {
-            contexto = ` en ${unidadAnalisis} de ${lugarContexto}`;
-        }
-
-        let discusion = '';
-
-        // Sección 1: Marco de la investigación
-        discusion += `**MARCO DE INVESTIGACIÓN**\n\n`;
-        discusion += `**Pregunta de Investigación:**\n${marco.preguntaInvestigacion}\n\n`;
-        discusion += `**Objetivo General:**\n${marco.objetivoGeneral}\n\n`;
-
-        if (marco.objetivosEspecificos.length > 0) {
-            discusion += `**Objetivos Específicos:**\n`;
-            marco.objetivosEspecificos.forEach((obj, idx) => {
-                discusion += `${idx + 1}. ${obj}\n`;
-            });
-            discusion += '\n';
-        }
-
-        discusion += `**Hipótesis de Investigación:**\n${marco.hipotesis.hipotesisInvestigador}\n\n`;
-        discusion += `**Hipótesis Nula (H₀):**\n${marco.hipotesis.hipotesisNula}\n\n`;
-        discusion += `**Hipótesis Alterna (H₁):**\n${marco.hipotesis.hipotesisAlterna}\n\n`;
-
-        // Sección 2: Metodología
-        discusion += `---\n\n**METODOLOGÍA ESTADÍSTICA**\n\n`;
-        discusion += `El análisis correlacional se realizó mediante el coeficiente de ${resultadoCorrelacion.tipoCorrelacion}, `;
-        discusion += `seleccionado en función de las pruebas de normalidad aplicadas. `;
-
-        if (resultadoCorrelacion.normalidad1.normal && resultadoCorrelacion.normalidad2.normal) {
-            discusion += `Ambas variables cumplieron con el supuesto de normalidad `;
-            discusion += `(${var1}: ${resultadoCorrelacion.normalidad1.prueba}, p = ${resultadoCorrelacion.normalidad1.pValor.toFixed(3)}; `;
-            discusion += `${var2}: ${resultadoCorrelacion.normalidad2.prueba}, p = ${resultadoCorrelacion.normalidad2.pValor.toFixed(3)}), `;
-            discusion += `justificando el uso de estadística paramétrica.\n\n`;
-        } else {
-            discusion += `Al menos una de las variables no cumplió con el supuesto de normalidad `;
-            discusion += `(${var1}: p = ${resultadoCorrelacion.normalidad1.pValor.toFixed(3)}; `;
-            discusion += `${var2}: p = ${resultadoCorrelacion.normalidad2.pValor.toFixed(3)}), `;
-            discusion += `por lo que se optó por estadística no paramétrica.\n\n`;
-        }
-
-        discusion += `Se estableció un nivel de significancia de α = ${prueba.alpha}, `;
-        discusion += `utilizando una prueba ${resultadoCorrelacion.tipoPrueba === 'bilateral' ? 'bilateral' : 'unilateral'}.\n\n`;
-
-        // Sección 3: Resultados
-        discusion += `---\n\n**RESULTADOS**\n\n`;
-        discusion += `El análisis reveló un coeficiente de correlación de `;
-        discusion += `${resultadoCorrelacion.tipoCorrelacion === 'Pearson' ? 'r' : 'ρ'} = ${resultadoCorrelacion.coeficiente.toFixed(4)}, `;
-        discusion += `con un valor de significancia p = ${resultadoCorrelacion.pValor.toFixed(4)}. `;
-
-        if (prueba.decision === 'rechazar') {
-            discusion += `Dado que p < α (${resultadoCorrelacion.pValor.toFixed(4)} < ${prueba.alpha}), `;
-            discusion += `se rechaza la hipótesis nula, concluyendo que **existe una relación estadísticamente significativa** `;
-            discusion += `entre ${var1} y ${var2}${contexto}.\n\n`;
-
-            discusion += `La magnitud del efecto indica una correlación **${resultadoCorrelacion.interpretacion.fuerza}** `;
-            discusion += `de dirección **${resultadoCorrelacion.interpretacion.direccion}**, `;
-            discusion += `lo que sugiere que ${resultadoCorrelacion.interpretacion.direccion === 'positiva' ?
-                'a medida que aumenta una variable, la otra tiende a aumentar' :
-                'a medida que aumenta una variable, la otra tiende a disminuir'}.\n\n`;
-        } else {
-            discusion += `Dado que p ≥ α (${resultadoCorrelacion.pValor.toFixed(4)} ≥ ${prueba.alpha}), `;
-            discusion += `no se puede rechazar la hipótesis nula. Por lo tanto, **no existe evidencia suficiente** `;
-            discusion += `para afirmar la existencia de una relación estadísticamente significativa `;
-            discusion += `entre ${var1} y ${var2}${contexto}.\n\n`;
-        }
-
-        // Sección 4: Interpretación y Discusión
-        discusion += `---\n\n**DISCUSIÓN E INTERPRETACIÓN**\n\n`;
-
-        if (prueba.decision === 'rechazar') {
-            discusion += `Los hallazgos ${prueba.decision === 'rechazar' ? 'confirman' : 'no confirman'} `;
-            discusion += `la hipótesis de investigación planteada. `;
-            discusion += `Este resultado puede interpretarse en el contexto de [MARCO TEÓRICO]. `;
-            discusion += `Según [AUTOR] ([AÑO]), [CONCEPTO TEÓRICO RELACIONADO].\n\n`;
-
-            discusion += `La relación ${resultadoCorrelacion.interpretacion.direccion} observada `;
-            discusion += `sugiere que [INTERPRETACIÓN TEÓRICA]. `;
-            discusion += `Esto coincide con lo reportado por [AUTOR] ([AÑO]), quien encontró [HALLAZGO SIMILAR].\n\n`;
-        } else {
-            discusion += `La ausencia de una relación estadísticamente significativa `;
-            discusion += `puede explicarse por diversos factores, incluyendo [POSIBLES EXPLICACIONES]. `;
-            discusion += `Este resultado contrasta con [AUTOR] ([AÑO]), quien reportó [HALLAZGO DIFERENTE]. `;
-            discusion += `Las diferencias metodológicas, contextuales o muestrales podrían explicar esta discrepancia.\n\n`;
-        }
-
-        discusion += `**Implicaciones:**\n`;
-        discusion += `- [IMPLICACIÓN TEÓRICA]\n`;
-        discusion += `- [IMPLICACIÓN PRÁCTICA]\n`;
-        discusion += `- [IMPLICACIÓN METODOLÓGICA]\n\n`;
-
-        discusion += `**Limitaciones del estudio:**\n`;
-        discusion += `- [LIMITACIÓN MUESTRAL/METODOLÓGICA]\n`;
-        discusion += `- [LIMITACIÓN DE GENERALIZACIÓN]\n\n`;
-
-        discusion += `**Recomendaciones para futuras investigaciones:**\n`;
-        discusion += `- [RECOMENDACIÓN 1]\n`;
-        discusion += `- [RECOMENDACIÓN 2]\n`;
-
-        return discusion;
+        return this._interpretaciones().generarDiscusion(
+            var1, var2, resultadoCorrelacion, prueba, unidadAnalisis, lugarContexto, {
+                dimensiones1: this.obtenerDimensiones(var1),
+                dimensiones2: this.obtenerDimensiones(var2),
+                configuracion: this.configuracionInvestigacion
+            }
+        );
     }
 
     // ========================================
