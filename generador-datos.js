@@ -5,6 +5,32 @@
 // Tope superior del tamaño muestral para evitar congelar el navegador.
 const TAMANO_MUESTRAL_MAXIMO = 100000;
 
+// ========================================
+// REGLAS DE COHERENCIA (fuente única)
+// Las usan la guía en vivo de la interfaz (guia-coherencia.js) y el respaldo
+// de validación del generador. Si una regla cambia, se cambia SOLO aquí.
+// ========================================
+const ReglasCoherencia = {
+    // Rango permitido de la Media de un puntaje que es suma de k ítems en [min, max]
+    rangoMedia(k, min, max) {
+        return { minimo: Math.ceil(k * min), maximo: Math.floor(k * max) };
+    },
+
+    // DE máxima sin recorte: la distribución (±3·DE) debe caber hasta el tope más cercano
+    deMaxima(media, totalMin, totalMax) {
+        return Math.min(media - totalMin, totalMax - media) / 3;
+    },
+
+    // DE mínima recomendada para que un total ENTERO no salga "escalonado" y pueda
+    // pasar la prueba de normalidad. Calibrada empíricamente: ≈ 1.1·√N.
+    deMinimaNormal(n) {
+        return (Number.isFinite(n) && n >= 2) ? Math.ceil(1.1 * Math.sqrt(n)) : 0;
+    }
+};
+if (typeof window !== 'undefined') {
+    window.ReglasCoherencia = ReglasCoherencia;
+}
+
 class GeneradorDatos {
     constructor() {
         this.datosGenerados = null;
@@ -61,6 +87,10 @@ class GeneradorDatos {
         // Semilla opcional para reproducibilidad
         const semillaTexto = document.getElementById('semilla').value.trim();
         this.configuracion.semilla = semillaTexto === '' ? null : parseInt(semillaTexto, 10);
+
+        // Percentiles opcionales (columnas PC_)
+        const chkPC = document.getElementById('generarPercentiles');
+        this.configuracion.generarPercentiles = !!(chkPC && chkPC.checked);
 
         // Pruebas aplicadas (cada fila es una ESCALA; se agrupan por prueba)
         this.configuracion.pruebas = this.recolectarPruebas();
@@ -139,16 +169,20 @@ class GeneradorDatos {
 
         filas.forEach((fila, index) => {
             const inputs = fila.querySelectorAll('input');
-            const selectDist = fila.querySelector('select');
+            const selectTipo = fila.querySelector('[aria-label="Tipo de escala"]');
+            const selectDist = fila.querySelector('[aria-label="Distribución"]');
+            const tipo = selectTipo ? selectTipo.value : 'dimension';
+            const esGeneral = tipo === 'general';
             const distribucion = selectDist ? selectDist.value : 'normal';
             const prueba = inputs[0].value.trim();      // test al que pertenece la escala
             const nombre = inputs[1].value.trim();      // nombre de la ESCALA (cada fila = una escala)
-            const numItems = parseInt(inputs[2].value);
+            // Escala general: es UNA sola columna de datos → no lleva N° de ítems ni α
+            const numItems = esGeneral ? 1 : parseInt(inputs[2].value);
             const media = parseFloat(inputs[3].value);
             const desviacion = parseFloat(inputs[4].value);
             const minimo = parseFloat(inputs[5].value);
             const maximo = parseFloat(inputs[6].value);
-            const alfa = inputs[7] ? parseFloat(inputs[7].value) : NaN;
+            const alfa = esGeneral ? NaN : (inputs[7] ? parseFloat(inputs[7].value) : NaN);
 
             if (nombre && !isNaN(numItems) && !isNaN(media) && !isNaN(desviacion)) {
                 if (numItems < 1) {
@@ -156,6 +190,9 @@ class GeneradorDatos {
                 }
                 if (desviacion <= 0) {
                     throw new Error(`Escala "${nombre}": La desviación estándar debe ser mayor a 0`);
+                }
+                if (esGeneral && (isNaN(minimo) || isNaN(maximo))) {
+                    throw new Error(`Escala general "${nombre}": debes indicar el Mínimo y el Máximo de la escala`);
                 }
 
                 // Validar rango si se especifica
@@ -172,6 +209,7 @@ class GeneradorDatos {
 
                 pruebas.push({
                     prueba: prueba || null,             // agrupa escalas bajo el mismo test
+                    tipo: tipo,                         // 'dimension' | 'general'
                     nombre: nombre,
                     nombreCorto: this.generarNombreCortoUnico(nombre, nombresCortosUsados),
                     numItems: numItems,
@@ -190,12 +228,20 @@ class GeneradorDatos {
 
     // Agrupa las escalas por el nombre de su prueba. Cada grupo recibe una sigla
     // única (sin chocar con las siglas de las escalas) que se usa para el puntaje
-    // general del test: Total_{sigla} = suma de los totales de sus escalas.
+    // general del test cuando NO hay Escala general configurada:
+    // Total_{sigla} = suma de los totales de sus dimensiones.
+    // Si la prueba tiene una Escala general (tipo 'general'), esa columna ES el
+    // puntaje general y la suma automática no se emite.
     agruparPruebas(escalas) {
         const usados = new Set(escalas.map(e => e.nombreCorto));
         const porNombre = new Map();
+        const generales = new Set();
         escalas.forEach(e => {
             if (!e.prueba) return;
+            if (e.tipo === 'general') {
+                generales.add(e.prueba);
+                return; // la general no entra en la suma de dimensiones
+            }
             if (!porNombre.has(e.prueba)) porNombre.set(e.prueba, []);
             porNombre.get(e.prueba).push(e.nombreCorto);
         });
@@ -204,7 +250,8 @@ class GeneradorDatos {
             grupos.push({
                 nombre: nombrePrueba,
                 sigla: this.generarNombreCortoUnico(nombrePrueba, usados),
-                escalas: siglasEscalas
+                escalas: siglasEscalas,
+                tieneGeneral: generales.has(nombrePrueba)
             });
         });
         return grupos;
@@ -335,7 +382,11 @@ class GeneradorDatos {
                 );
             });
 
-            // Generar datos de cada prueba
+            // Generar datos de cada prueba.
+            // ORDEN DE COLUMNAS: primero TODOS los ítems, luego los totales de
+            // las DIMENSIONES, y al final los puntajes de las ESCALAS GENERALES
+            // (y las sumas automáticas de pruebas sin general).
+            const totalesPendientes = [];
             this.configuracion.pruebas.forEach(prueba => {
                 const driverEscala = drivers['escala:' + prueba.nombreCorto];
                 const puntajes = this.generarPuntajesPrueba(
@@ -349,24 +400,39 @@ class GeneradorDatos {
                     prueba.distribucion
                 );
 
-                // Agregar cada ítem
-                puntajes.items.forEach((puntaje, idx) => {
-                    const nombreColumna = `${prueba.nombreCorto}${idx + 1}`;
-                    participante[nombreColumna] = puntaje;
-                });
+                // Ítems (la Escala general es una sola columna de datos: no
+                // tiene ítems, solo su Total_)
+                if (prueba.tipo !== 'general') {
+                    puntajes.items.forEach((puntaje, idx) => {
+                        const nombreColumna = `${prueba.nombreCorto}${idx + 1}`;
+                        participante[nombreColumna] = puntaje;
+                    });
+                }
 
-                // Agregar total
-                participante[`Total_${prueba.nombreCorto}`] = puntajes.total;
+                totalesPendientes.push({ prueba, total: puntajes.total });
+            });
+
+            // Totales de las DIMENSIONES (en el orden de la tabla)
+            totalesPendientes.forEach(t => {
+                if (t.prueba.tipo !== 'general') {
+                    participante[`Total_${t.prueba.nombreCorto}`] = t.total;
+                }
+            });
+
+            // Totales de las ESCALAS GENERALES, al final
+            totalesPendientes.forEach(t => {
+                if (t.prueba.tipo === 'general') {
+                    participante[`Total_${t.prueba.nombreCorto}`] = t.total;
+                }
             });
 
             // Aplicar diferencias por grupo (desplazan la media según el grupo)
             this.aplicarDiferenciasGrupo(participante);
 
-            // PUNTAJE GENERAL de cada prueba: suma de los puntajes directos de
-            // sus escalas (solo cuando la prueba agrupa 2 o más escalas; con una
-            // sola, el total de la escala YA es el total del test).
+            // Suma automática (pruebas SIN Escala general y con 2+ dimensiones):
+            // también va al final, junto a los puntajes generales.
             (this.configuracion.gruposPruebas || []).forEach(grupo => {
-                if (grupo.escalas.length < 2) return;
+                if (grupo.tieneGeneral || grupo.escalas.length < 2) return;
                 let suma = 0;
                 grupo.escalas.forEach(sigla => { suma += participante[`Total_${sigla}`]; });
                 participante[`Total_${grupo.sigla}`] = Math.round(suma * 100) / 100;
@@ -375,14 +441,16 @@ class GeneradorDatos {
             datos.push(participante);
         }
 
-        // PERCENTILES (post-proceso): posición relativa (0-100) de cada persona
-        // dentro de la muestra generada, para el puntaje directo de cada escala y
-        // para el puntaje general de cada prueba. Rango medio: PC = (inferiores +
-        // 0.5·empates) / N · 100.
-        const columnasPercentil = [];
-        this.configuracion.pruebas.forEach(e => columnasPercentil.push(e.nombreCorto));
+        // PERCENTILES (post-proceso, OPCIONAL): posición relativa (0-100) de cada
+        // persona dentro de la muestra generada, para el puntaje directo de cada
+        // escala. Rango medio: PC = (inferiores + 0.5·empates) / N · 100.
+        if (this.configuracion.generarPercentiles) {
+            const columnasPercentil = [];
+        // mismo orden que los totales: primero dimensiones, luego generales
+        this.configuracion.pruebas.forEach(e => { if (e.tipo !== 'general') columnasPercentil.push(e.nombreCorto); });
+        this.configuracion.pruebas.forEach(e => { if (e.tipo === 'general') columnasPercentil.push(e.nombreCorto); });
         (this.configuracion.gruposPruebas || []).forEach(g => {
-            if (g.escalas.length >= 2) columnasPercentil.push(g.sigla);
+            if (!g.tieneGeneral && g.escalas.length >= 2) columnasPercentil.push(g.sigla);
         });
         columnasPercentil.forEach(sigla => {
             const col = `Total_${sigla}`;
@@ -400,6 +468,7 @@ class GeneradorDatos {
                 d[`PC_${sigla}`] = Math.round(((inferiores + 0.5 * empates) / n) * 1000) / 10;
             });
         });
+        }
 
         this.datosGenerados = datos;
         return datos;
@@ -879,6 +948,28 @@ class GeneradorDatos {
             advertencias.push('Tamaño muestral muy grande: Puede ser poco realista');
         }
 
+        // Toda prueba debe tener exactamente UNA Escala general (tipo "General"):
+        // aunque un test no tenga varias dimensiones, siempre tiene un puntaje
+        // general, así que la fila General es obligatoria.
+        const pruebasNombres = new Set();
+        const generalesPorPrueba = new Map();
+        (this.configuracion.pruebas || []).forEach(e => {
+            if (!e.prueba) return;
+            pruebasNombres.add(e.prueba);
+            if (e.tipo === 'general') {
+                generalesPorPrueba.set(e.prueba, (generalesPorPrueba.get(e.prueba) || 0) + 1);
+            }
+        });
+        pruebasNombres.forEach(nombrePrueba => {
+            const cuenta = generalesPorPrueba.get(nombrePrueba) || 0;
+            if (cuenta === 0) {
+                errores.push(`Prueba "${nombrePrueba}": le falta su Escala general. Agrega una fila con Tipo = "General" ` +
+                    `(nombre = la variable que mide el test, con su Mín/Máx, Media y DE).`);
+            } else if (cuenta > 1) {
+                errores.push(`Prueba "${nombrePrueba}": tiene ${cuenta} Escalas generales; solo puede haber UNA por prueba`);
+            }
+        });
+
         // Validar pruebas
         this.configuracion.pruebas.forEach(prueba => {
             // Validar que la media sea positiva
@@ -905,28 +996,29 @@ class GeneradorDatos {
                     );
                 } else {
                     // La DE máxima la fija la distancia de la Media al tope más cercano.
-                    const margen = Math.min(prueba.media - totalMin, totalMax - prueba.media);
-                    const deMax = margen / 3;
-                    // Mínimo anti-escalera: un total entero con DE pequeña sale
-                    // discreto y KS lo rechaza (peor cuanto mayor es N). ~1.1·√N.
+                    const deMax = ReglasCoherencia.deMaxima(prueba.media, totalMin, totalMax);
+                    // Mínimo anti-escalera: SOLO aplica si se busca distribución
+                    // normal; con Uniforme/Asimétrica la "escalera" es irrelevante
+                    // porque de todos modos no se busca pasar normalidad.
+                    const buscaNormal = prueba.distribucion === 'normal';
                     const N = this.configuracion.tamanoMuestra;
-                    const deSuave = (N >= 2) ? Math.ceil(1.1 * Math.sqrt(N)) : 0;
+                    const deSuave = buscaNormal ? ReglasCoherencia.deMinimaNormal(N) : 0;
                     const centro = Math.round((totalMin + totalMax) / 2);
 
                     if (de > deMax) {
                         advertencias.push(
                             `Escala "${prueba.nombre}": la DE ${de} es demasiado grande para una Media de ${prueba.media} ` +
                             `(máximo ≈ ${(Math.floor(deMax * 100) / 100)}). El total se recortará contra el tope más cercano, ` +
-                            `la DE real bajará y la distribución probablemente NO pasará la prueba de normalidad. ` +
+                            `la DE real bajará y la forma de la distribución se distorsionará. ` +
                             `Reduce la DE, acerca la Media al centro (~${centro}) o amplía el Mín/Máx por ítem.`
                         );
-                    } else if (deSuave > deMax) {
+                    } else if (buscaNormal && deSuave > deMax) {
                         advertencias.push(
                             `Escala "${prueba.nombre}": con N=${N}, el rango por ítem [${prueba.minimo}, ${prueba.maximo}] es demasiado estrecho ` +
                             `para un total normal (haría falta DE ≈ ${deSuave}, pero el máximo con esta Media es ${(Math.floor(deMax * 100) / 100)}). ` +
                             `Amplía el Máx por ítem o reduce N.`
                         );
-                    } else if (de < deSuave) {
+                    } else if (buscaNormal && de < deSuave) {
                         advertencias.push(
                             `Escala "${prueba.nombre}": la DE ${de} es muy pequeña para N=${N}; el total entero saldrá "escalonado" ` +
                             `y probablemente NO pasará la prueba de normalidad. Usa una DE de al menos ≈ ${deSuave}.`
