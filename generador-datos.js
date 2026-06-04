@@ -62,11 +62,12 @@ class GeneradorDatos {
         const semillaTexto = document.getElementById('semilla').value.trim();
         this.configuracion.semilla = semillaTexto === '' ? null : parseInt(semillaTexto, 10);
 
-        // Pruebas aplicadas
+        // Pruebas aplicadas (cada fila es una ESCALA; se agrupan por prueba)
         this.configuracion.pruebas = this.recolectarPruebas();
         if (this.configuracion.pruebas.length === 0) {
-            throw new Error('Debe agregar al menos una prueba');
+            throw new Error('Debe agregar al menos una escala');
         }
+        this.configuracion.gruposPruebas = this.agruparPruebas(this.configuracion.pruebas);
 
         // Datos sociodemográficos
         this.configuracion.sociodemograficos = this.recolectarSociodemograficos();
@@ -140,35 +141,37 @@ class GeneradorDatos {
             const inputs = fila.querySelectorAll('input');
             const selectDist = fila.querySelector('select');
             const distribucion = selectDist ? selectDist.value : 'normal';
-            const nombre = inputs[0].value.trim();
-            const numItems = parseInt(inputs[1].value);
-            const media = parseFloat(inputs[2].value);
-            const desviacion = parseFloat(inputs[3].value);
-            const minimo = parseFloat(inputs[4].value);
-            const maximo = parseFloat(inputs[5].value);
-            const alfa = inputs[6] ? parseFloat(inputs[6].value) : NaN;
+            const prueba = inputs[0].value.trim();      // test al que pertenece la escala
+            const nombre = inputs[1].value.trim();      // nombre de la ESCALA (cada fila = una escala)
+            const numItems = parseInt(inputs[2].value);
+            const media = parseFloat(inputs[3].value);
+            const desviacion = parseFloat(inputs[4].value);
+            const minimo = parseFloat(inputs[5].value);
+            const maximo = parseFloat(inputs[6].value);
+            const alfa = inputs[7] ? parseFloat(inputs[7].value) : NaN;
 
             if (nombre && !isNaN(numItems) && !isNaN(media) && !isNaN(desviacion)) {
                 if (numItems < 1) {
-                    throw new Error(`Prueba "${nombre}": El número de ítems debe ser al menos 1`);
+                    throw new Error(`Escala "${nombre}": El número de ítems debe ser al menos 1`);
                 }
                 if (desviacion <= 0) {
-                    throw new Error(`Prueba "${nombre}": La desviación estándar debe ser mayor a 0`);
+                    throw new Error(`Escala "${nombre}": La desviación estándar debe ser mayor a 0`);
                 }
 
                 // Validar rango si se especifica
                 if (!isNaN(minimo) && !isNaN(maximo)) {
                     if (minimo >= maximo) {
-                        throw new Error(`Prueba "${nombre}": El mínimo debe ser menor que el máximo`);
+                        throw new Error(`Escala "${nombre}": El mínimo debe ser menor que el máximo`);
                     }
                 }
 
                 // Validar alfa objetivo si se especifica
                 if (!isNaN(alfa) && (alfa < 0 || alfa >= 1)) {
-                    throw new Error(`Prueba "${nombre}": El α objetivo debe estar entre 0 y 1`);
+                    throw new Error(`Escala "${nombre}": El α objetivo debe estar entre 0 y 1`);
                 }
 
                 pruebas.push({
+                    prueba: prueba || null,             // agrupa escalas bajo el mismo test
                     nombre: nombre,
                     nombreCorto: this.generarNombreCortoUnico(nombre, nombresCortosUsados),
                     numItems: numItems,
@@ -183,6 +186,28 @@ class GeneradorDatos {
         });
 
         return pruebas;
+    }
+
+    // Agrupa las escalas por el nombre de su prueba. Cada grupo recibe una sigla
+    // única (sin chocar con las siglas de las escalas) que se usa para el puntaje
+    // general del test: Total_{sigla} = suma de los totales de sus escalas.
+    agruparPruebas(escalas) {
+        const usados = new Set(escalas.map(e => e.nombreCorto));
+        const porNombre = new Map();
+        escalas.forEach(e => {
+            if (!e.prueba) return;
+            if (!porNombre.has(e.prueba)) porNombre.set(e.prueba, []);
+            porNombre.get(e.prueba).push(e.nombreCorto);
+        });
+        const grupos = [];
+        porNombre.forEach((siglasEscalas, nombrePrueba) => {
+            grupos.push({
+                nombre: nombrePrueba,
+                sigla: this.generarNombreCortoUnico(nombrePrueba, usados),
+                escalas: siglasEscalas
+            });
+        });
+        return grupos;
     }
 
     recolectarSociodemograficos() {
@@ -337,8 +362,44 @@ class GeneradorDatos {
             // Aplicar diferencias por grupo (desplazan la media según el grupo)
             this.aplicarDiferenciasGrupo(participante);
 
+            // PUNTAJE GENERAL de cada prueba: suma de los puntajes directos de
+            // sus escalas (solo cuando la prueba agrupa 2 o más escalas; con una
+            // sola, el total de la escala YA es el total del test).
+            (this.configuracion.gruposPruebas || []).forEach(grupo => {
+                if (grupo.escalas.length < 2) return;
+                let suma = 0;
+                grupo.escalas.forEach(sigla => { suma += participante[`Total_${sigla}`]; });
+                participante[`Total_${grupo.sigla}`] = Math.round(suma * 100) / 100;
+            });
+
             datos.push(participante);
         }
+
+        // PERCENTILES (post-proceso): posición relativa (0-100) de cada persona
+        // dentro de la muestra generada, para el puntaje directo de cada escala y
+        // para el puntaje general de cada prueba. Rango medio: PC = (inferiores +
+        // 0.5·empates) / N · 100.
+        const columnasPercentil = [];
+        this.configuracion.pruebas.forEach(e => columnasPercentil.push(e.nombreCorto));
+        (this.configuracion.gruposPruebas || []).forEach(g => {
+            if (g.escalas.length >= 2) columnasPercentil.push(g.sigla);
+        });
+        columnasPercentil.forEach(sigla => {
+            const col = `Total_${sigla}`;
+            const valores = datos.map(d => d[col]).slice().sort((a, b) => a - b);
+            const n = valores.length;
+            datos.forEach(d => {
+                const v = d[col];
+                // búsqueda binaria de límites inferior y superior
+                let lo = 0, hi = n;
+                while (lo < hi) { const m = (lo + hi) >> 1; if (valores[m] < v) lo = m + 1; else hi = m; }
+                const inferiores = lo;
+                lo = 0; hi = n;
+                while (lo < hi) { const m = (lo + hi) >> 1; if (valores[m] <= v) lo = m + 1; else hi = m; }
+                const empates = lo - inferiores;
+                d[`PC_${sigla}`] = Math.round(((inferiores + 0.5 * empates) / n) * 1000) / 10;
+            });
+        });
 
         this.datosGenerados = datos;
         return datos;
@@ -822,7 +883,7 @@ class GeneradorDatos {
         this.configuracion.pruebas.forEach(prueba => {
             // Validar que la media sea positiva
             if (prueba.media < 0) {
-                errores.push(`Prueba "${prueba.nombre}": La media no puede ser negativa`);
+                errores.push(`Escala "${prueba.nombre}": La media no puede ser negativa`);
             }
 
             // FACTIBILIDAD DEL TOTAL (debe coincidir con las pistas en vivo):
@@ -838,7 +899,7 @@ class GeneradorDatos {
                 if (prueba.media < totalMin || prueba.media > totalMax) {
                     // Imposible: la media cae fuera del rango que puede tomar la suma.
                     errores.push(
-                        `Prueba "${prueba.nombre}": la Media ${prueba.media} es IMPOSIBLE. ` +
+                        `Escala "${prueba.nombre}": la Media ${prueba.media} es IMPOSIBLE. ` +
                         `Con ${k} ítems de ${prueba.minimo} a ${prueba.maximo} el total solo puede ir de ${totalMin} a ${totalMax}. ` +
                         `Usa una Media dentro de ese rango (cerca del centro es lo más seguro), o cambia el Mín/Máx por ítem.`
                     );
@@ -854,20 +915,20 @@ class GeneradorDatos {
 
                     if (de > deMax) {
                         advertencias.push(
-                            `Prueba "${prueba.nombre}": la DE ${de} es demasiado grande para una Media de ${prueba.media} ` +
+                            `Escala "${prueba.nombre}": la DE ${de} es demasiado grande para una Media de ${prueba.media} ` +
                             `(máximo ≈ ${(Math.floor(deMax * 100) / 100)}). El total se recortará contra el tope más cercano, ` +
                             `la DE real bajará y la distribución probablemente NO pasará la prueba de normalidad. ` +
                             `Reduce la DE, acerca la Media al centro (~${centro}) o amplía el Mín/Máx por ítem.`
                         );
                     } else if (deSuave > deMax) {
                         advertencias.push(
-                            `Prueba "${prueba.nombre}": con N=${N}, el rango por ítem [${prueba.minimo}, ${prueba.maximo}] es demasiado estrecho ` +
+                            `Escala "${prueba.nombre}": con N=${N}, el rango por ítem [${prueba.minimo}, ${prueba.maximo}] es demasiado estrecho ` +
                             `para un total normal (haría falta DE ≈ ${deSuave}, pero el máximo con esta Media es ${(Math.floor(deMax * 100) / 100)}). ` +
                             `Amplía el Máx por ítem o reduce N.`
                         );
                     } else if (de < deSuave) {
                         advertencias.push(
-                            `Prueba "${prueba.nombre}": la DE ${de} es muy pequeña para N=${N}; el total entero saldrá "escalonado" ` +
+                            `Escala "${prueba.nombre}": la DE ${de} es muy pequeña para N=${N}; el total entero saldrá "escalonado" ` +
                             `y probablemente NO pasará la prueba de normalidad. Usa una DE de al menos ≈ ${deSuave}.`
                         );
                     }
