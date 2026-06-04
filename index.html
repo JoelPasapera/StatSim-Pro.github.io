@@ -106,6 +106,13 @@
                             <input type="number" id="semilla" class="input" step="1" placeholder="Ej: 42">
                             <span class="help-text">Misma semilla = mismos datos (reproducible). Vacío = aleatorio.</span>
                         </div>
+                        <div class="form-group">
+                            <label for="generarPercentiles" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="generarPercentiles" style="width: auto; margin: 0;">
+                                Generar percentiles (PC_)
+                            </label>
+                            <span class="help-text">Añade una columna PC_ por escala: posición relativa (0–100) de cada persona en la muestra. Útil para baremos; desactívalo si no lo necesitas.</span>
+                        </div>
                     </div>
                 </div>
 
@@ -157,8 +164,10 @@
                         <span class="orden-paso"><span class="orden-num">7</span> Media</span>
                         <span class="orden-flecha" aria-hidden="true">→</span>
                         <span class="orden-paso"><span class="orden-num">8</span> Desviación estándar</span>
-                        <span class="orden-nota">Cada fila es UNA escala (dimensión). Las filas con la misma Prueba se agrupan: el puntaje
-                            general del test será la suma de sus escalas. Cada campo se desbloquea al completar el anterior.</span>
+                        <span class="orden-nota">Cada fila es UNA escala. Las filas con la misma Prueba se agrupan. En <strong>Tipo</strong> elige
+                            <em>Dimensión</em> (subescala con ítems) o <em>General</em> (escala general del test: sin N° de ítems ni α; su Mín/Máx
+                            son de la escala completa). <strong>Toda prueba debe incluir UNA fila General</strong> — es su puntaje general.
+                            Cada campo se desbloquea al completar el anterior.</span>
                     </div>
                     <datalist id="listaPruebas"></datalist>
 
@@ -168,6 +177,7 @@
                                 <tr>
                                     <th>Prueba (test)</th>
                                     <th>Escala / Dimensión</th>
+                                    <th>Tipo</th>
                                     <th>N° de Ítems</th>
                                     <th>Distribución</th>
                                     <th>Media (M)</th>
@@ -188,6 +198,12 @@
                                     <td>
                                         <input type="text" class="input input-sm" placeholder="Ej: Memoria de trabajo"
                                             maxlength="100" aria-label="Nombre de la escala" disabled>
+                                    </td>
+                                    <td>
+                                        <select class="input input-sm" aria-label="Tipo de escala">
+                                            <option value="dimension">Dimensión</option>
+                                            <option value="general">General</option>
+                                        </select>
                                     </td>
                                     <td>
                                         <input type="number" class="input input-sm" placeholder="Ej: 60" min="1" aria-label="Número de ítems" disabled>
@@ -234,14 +250,23 @@
                             <li>
                                 <strong>Prueba (test):</strong> nombre del instrumento psicométrico completo
                                 (Ej: "WAIS-IV", "TMMS-24"). Escribe el mismo nombre en varias filas para agrupar sus
-                                escalas: el programa generará además el <em>puntaje general del test</em> (la suma de
-                                los totales de sus escalas).
+                                escalas bajo el mismo test. Toda prueba debe tener su <em>Escala general</em> (una fila
+                                con Tipo = "General") y, si el test las tiene, sus dimensiones.
                             </li>
                             <li>
                                 <strong>Escala / Dimensión:</strong> nombre de la subescala o dimensión de esa prueba
                                 (Ej: "Memoria de trabajo", "Atención"). Cada fila representa UNA escala con sus propias
                                 medidas (ítems, rango, Media, DE). La sigla del nombre de la escala se usa para nombrar
                                 sus ítems en la base (Ej: "Memoria de trabajo" → MDT1, MDT2, … y Total_MDT).
+                            </li>
+                            <li>
+                                <strong>Tipo — Dimensión o General:</strong> <em>Dimensión</em> es una subescala con sus
+                                propios ítems. <em>General</em> es la escala general del test, <strong>obligatoria y
+                                única por prueba</strong>: en "Escala" escribe el nombre de la variable que el test
+                                pretende medir (Ej: "Inteligencia emocional"). La escala general es una sola columna de
+                                datos, por eso NO lleva N° de ítems ni α (se desactivan); su <em>Mín y Máx son de la
+                                escala general completa</em>, no por ítem, y su Media y DE describen ese puntaje
+                                general. Aunque un test no tenga dimensiones, siempre lleva su fila General.
                             </li>
                             <li>
                                 <strong>N° de ítems:</strong> cantidad de ítems (preguntas) de ESA escala, según la
@@ -291,13 +316,16 @@
                                 y NO corresponden a la suma de ítems: no uses esos valores como Media/DE aquí.
                             </li>
                             <li>
-                                <strong>Qué genera el programa por cada persona encuestada:</strong>
-                                (a) los <em>ítems</em> de cada escala (Ej: MDT1…MDT15);
-                                (b) el <em>puntaje directo de cada escala</em> = suma de sus ítems (Total_MDT);
-                                (c) el <em>puntaje general del test</em> = suma de los puntajes de sus escalas
-                                (Total_[sigla de la prueba], cuando la prueba tiene 2 o más escalas);
-                                y (d) los <em>percentiles</em> de cada puntaje (PC_…), es decir, la posición relativa
-                                de esa persona dentro de la muestra generada (0–100).
+                                <strong>Qué genera el programa por cada persona encuestada (en este orden de
+                                columnas):</strong>
+                                (a) los <em>ítems</em> de cada dimensión (Ej: MDT1…MDT15);
+                                (b) los <em>puntajes directos de las dimensiones</em> = suma de sus ítems (Total_MDT,
+                                Total_CV, …);
+                                (c) al final, el <em>puntaje de la Escala general</em> de cada prueba (Total_IE);
+                                y (d) opcionalmente, si activas la casilla <em>"Generar percentiles"</em> en
+                                Configuración General, los <em>percentiles</em> de cada puntaje (PC_…, en el mismo
+                                orden: dimensiones y luego generales): la posición relativa de esa persona dentro de la
+                                muestra generada (0–100).
                             </li>
                         </ol>
                     </div>
@@ -890,6 +918,9 @@
 
     <!-- Librería de gráficos científicos (depende de d3) -->
     <script src="graficas.js"></script>
+
+    <!-- Guía de coherencia en vivo (usa ReglasCoherencia de generador-datos.js) -->
+    <script src="guia-coherencia.js"></script>
 
     <!-- Código de app.js -->
     <script src="app.js"></script>
