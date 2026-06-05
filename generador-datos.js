@@ -226,18 +226,26 @@ class GeneradorDatos {
         return pruebas;
     }
 
+    // Nombre de columna de una escala según su tipo (FUENTE ÚNICA):
+    // dimensión → Dimension_<sigla>; general → General_<sigla>.
+    // El prefijo codifica el tipo para que una base exportada conserve su
+    // estructura y el analizador pueda reconstruirla desde el CSV.
+    columnaDeEscala(escala) {
+        return `${escala.tipo === 'general' ? 'General' : 'Dimension'}_${escala.nombreCorto}`;
+    }
+
     // Diccionario de etiquetas humanas para las columnas generadas (estilo
     // "variable labels" de SPSS): Total_IC → "Inteligencia Cognitiva".
     obtenerEtiquetas() {
         const mapa = {};
         const escalas = (this.configuracion && this.configuracion.pruebas) || [];
         escalas.forEach(e => {
-            mapa[`Total_${e.nombreCorto}`] = e.nombre;
+            mapa[this.columnaDeEscala(e)] = e.nombre;
             mapa[`PC_${e.nombreCorto}`] = `Percentil — ${e.nombre}`;
         });
         (this.configuracion && this.configuracion.gruposPruebas || []).forEach(g => {
             if (!g.tieneGeneral && g.escalas.length >= 2) {
-                mapa[`Total_${g.sigla}`] = `Puntaje general — ${g.nombre}`;
+                mapa[`General_${g.sigla}`] = `Puntaje general — ${g.nombre}`;
                 mapa[`PC_${g.sigla}`] = `Percentil — ${g.nombre}`;
             }
         });
@@ -261,10 +269,10 @@ class GeneradorDatos {
             if (!grupo.general || grupo.dimensiones.length === 0) return;
             estructura.push({
                 prueba: nombrePrueba,
-                columnaGeneral: `Total_${grupo.general.nombreCorto}`,
+                columnaGeneral: this.columnaDeEscala(grupo.general),
                 etiquetaGeneral: grupo.general.nombre,
                 dimensiones: grupo.dimensiones.map(d => ({
-                    columna: `Total_${d.nombreCorto}`,
+                    columna: this.columnaDeEscala(d),
                     etiqueta: d.nombre
                 }))
             });
@@ -461,14 +469,14 @@ class GeneradorDatos {
             // Totales de las DIMENSIONES (en el orden de la tabla)
             totalesPendientes.forEach(t => {
                 if (t.prueba.tipo !== 'general') {
-                    participante[`Total_${t.prueba.nombreCorto}`] = t.total;
+                    participante[this.columnaDeEscala(t.prueba)] = t.total;
                 }
             });
 
             // Totales de las ESCALAS GENERALES, al final
             totalesPendientes.forEach(t => {
                 if (t.prueba.tipo === 'general') {
-                    participante[`Total_${t.prueba.nombreCorto}`] = t.total;
+                    participante[this.columnaDeEscala(t.prueba)] = t.total;
                 }
             });
 
@@ -480,8 +488,8 @@ class GeneradorDatos {
             (this.configuracion.gruposPruebas || []).forEach(grupo => {
                 if (grupo.tieneGeneral || grupo.escalas.length < 2) return;
                 let suma = 0;
-                grupo.escalas.forEach(sigla => { suma += participante[`Total_${sigla}`]; });
-                participante[`Total_${grupo.sigla}`] = Math.round(suma * 100) / 100;
+                grupo.escalas.forEach(sigla => { suma += participante[`Dimension_${sigla}`]; });
+                participante[`General_${grupo.sigla}`] = Math.round(suma * 100) / 100;
             });
 
             datos.push(participante);
@@ -493,13 +501,12 @@ class GeneradorDatos {
         if (this.configuracion.generarPercentiles) {
             const columnasPercentil = [];
         // mismo orden que los totales: primero dimensiones, luego generales
-        this.configuracion.pruebas.forEach(e => { if (e.tipo !== 'general') columnasPercentil.push(e.nombreCorto); });
-        this.configuracion.pruebas.forEach(e => { if (e.tipo === 'general') columnasPercentil.push(e.nombreCorto); });
+        this.configuracion.pruebas.forEach(e => { if (e.tipo !== 'general') columnasPercentil.push({ sigla: e.nombreCorto, col: this.columnaDeEscala(e) }); });
+        this.configuracion.pruebas.forEach(e => { if (e.tipo === 'general') columnasPercentil.push({ sigla: e.nombreCorto, col: this.columnaDeEscala(e) }); });
         (this.configuracion.gruposPruebas || []).forEach(g => {
-            if (!g.tieneGeneral && g.escalas.length >= 2) columnasPercentil.push(g.sigla);
+            if (!g.tieneGeneral && g.escalas.length >= 2) columnasPercentil.push({ sigla: g.sigla, col: `General_${g.sigla}` });
         });
-        columnasPercentil.forEach(sigla => {
-            const col = `Total_${sigla}`;
+        columnasPercentil.forEach(({ sigla, col }) => {
             const valores = datos.map(d => d[col]).slice().sort((a, b) => a - b);
             const n = valores.length;
             datos.forEach(d => {
@@ -876,7 +883,7 @@ class GeneradorDatos {
                 for (let idx = 0; idx < k; idx++) {
                     total += participante[escala.nombreCorto + (idx + 1)];
                 }
-                participante['Total_' + escala.nombreCorto] = Math.round(total * 100) / 100;
+                participante[this.columnaDeEscala(escala)] = Math.round(total * 100) / 100;
                 return;
             }
 
