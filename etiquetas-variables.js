@@ -58,9 +58,10 @@ const EtiquetasVariables = {
     //   'total' → solo puntajes de escala (prefijo Total_), NO ítems individuales
     //   'todos' → todas las columnas numéricas del dataset
     // (Para un criterio nuevo, agrega otra entrada en _FILTROS_RENOMBRADO y apunta el modo a ella.)
-    MODO_RENOMBRADO: 'total',
+    MODO_RENOMBRADO: 'puntajes',
     _FILTROS_RENOMBRADO: {
-        total: col => /^total_/i.test(col),
+        // Puntajes de escala: nuevos prefijos por tipo + Total_ (bases antiguas)
+        puntajes: col => /^(total|dimension|general)_/i.test(col),
         todos: () => true
     },
 
@@ -96,7 +97,7 @@ const EtiquetasVariables = {
                     </summary>
                     <p class="help-text" style="margin-top: 0.5rem;">
                         Asigna un nombre legible a cada <strong>puntaje de escala</strong> (Ej:
-                        <code>Total_IE</code> → "Inteligencia emocional"). Los ítems individuales no se
+                        <code>General_IE</code> → "Inteligencia emocional"). Los ítems individuales no se
                         renombran. Las etiquetas se usarán en la pregunta, objetivos, hipótesis,
                         resultados y discusión; los datos no se modifican. Deja vacío lo que no quieras
                         renombrar.
