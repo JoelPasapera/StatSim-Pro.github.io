@@ -310,13 +310,38 @@ const InterpretacionesEstadisticas = {
         }
 
         // 2) Comparativos: diferencias según variables sociodemográficas.
-        const socios = (opciones.sociodemograficos || []).filter(s => !!s);
-        socios.forEach((s, i) => {
-            const verboComp = i % 2 === 0 ? 'Analizar las diferencias' : 'Comparar los niveles';
-            objetivos.push(`${verboComp} de ${var1} ${this._conj(var2)} ${var2} según ${s.toLowerCase()}${contexto}.`);
-        });
+        objetivos.push(...this._objetivosComparativos(var1, var2, opciones.sociodemograficos || [],
+            opciones.unidadAnalisis, opciones.lugarContexto));
 
         return objetivos;
+    },
+
+    _objetivosComparativos(var1, var2, sociodemograficos, unidadAnalisis, lugarContexto) {
+        const contexto = (unidadAnalisis && lugarContexto)
+            ? ` en ${unidadAnalisis} de ${lugarContexto}`
+            : '';
+        return (sociodemograficos || []).filter(s => !!s).map((s, i) => {
+            const verboComp = i % 2 === 0 ? 'Analizar las diferencias' : 'Comparar los niveles';
+            return `${verboComp} de ${var1} ${this._conj(var2)} ${var2} según ${s.toLowerCase()}${contexto}.`;
+        });
+    },
+
+    // Redacta el objetivo específico de UN par seleccionado por la criba.
+    // sel: {etiquetaX, etiquetaY, pruebaDeX, pruebaDeY?, tipoPar}; i: índice (rota el verbo).
+    generarObjetivoDeParSeleccionado(sel, i, contexto) {
+        const verbo = this._VERBOS_CORRELACIONALES[i % this._VERBOS_CORRELACIONALES.length];
+        if (sel.tipoPar === 'dim-dim') {
+            return `${verbo} la relación entre la dimensión ${sel.etiquetaX} de ${sel.pruebaDeX} y la dimensión ${sel.etiquetaY} de ${sel.pruebaDeY}${contexto || ''}.`;
+        }
+        return `${verbo} la relación entre la dimensión ${sel.etiquetaX} de ${sel.pruebaDeX} ${this._conj(sel.etiquetaY)} ${sel.etiquetaY}${contexto || ''}.`;
+    },
+
+    // Lista completa de objetivos desde la selección de la criba (mismo orden).
+    generarObjetivosDesdeSeleccion(seleccionados, opciones = {}) {
+        const contexto = (opciones.unidadAnalisis && opciones.lugarContexto)
+            ? ` en ${opciones.unidadAnalisis} de ${opciones.lugarContexto}`
+            : '';
+        return (seleccionados || []).map((sel, i) => this.generarObjetivoDeParSeleccionado(sel, i, contexto));
     },
 
     // Resumen profesional del proceso de criba (selección de objetivos por datos).
@@ -385,12 +410,15 @@ const InterpretacionesEstadisticas = {
         return {
             preguntaInvestigacion: this.generarPreguntaInvestigacion(var1, var2, unidadAnalisis, lugarContexto),
             objetivoGeneral: this.generarObjetivoGeneral(var1, var2, unidadAnalisis, lugarContexto),
-            objetivosEspecificos: this.generarObjetivosEspecificos(
-                var1, var2,
-                opciones.dimensiones1 || null,
-                opciones.dimensiones2 || null,
-                { unidadAnalisis, lugarContexto, sociodemograficos: opciones.sociodemograficos || [] }
-            ),
+            objetivosEspecificos: opciones.objetivosPersonalizados
+                ? opciones.objetivosPersonalizados.concat(this._objetivosComparativos(
+                    var1, var2, opciones.sociodemograficos || [], unidadAnalisis, lugarContexto))
+                : this.generarObjetivosEspecificos(
+                    var1, var2,
+                    opciones.dimensiones1 || null,
+                    opciones.dimensiones2 || null,
+                    { unidadAnalisis, lugarContexto, sociodemograficos: opciones.sociodemograficos || [] }
+                ),
             hipotesis: this.generarHipotesis(var1, var2, unidadAnalisis, lugarContexto),
             configuracion: opciones.configuracion || null
         };
