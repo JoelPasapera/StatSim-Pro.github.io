@@ -226,6 +226,52 @@ class GeneradorDatos {
         return pruebas;
     }
 
+    // Diccionario de etiquetas humanas para las columnas generadas (estilo
+    // "variable labels" de SPSS): Total_IC → "Inteligencia Cognitiva".
+    obtenerEtiquetas() {
+        const mapa = {};
+        const escalas = (this.configuracion && this.configuracion.pruebas) || [];
+        escalas.forEach(e => {
+            mapa[`Total_${e.nombreCorto}`] = e.nombre;
+            mapa[`PC_${e.nombreCorto}`] = `Percentil — ${e.nombre}`;
+        });
+        (this.configuracion && this.configuracion.gruposPruebas || []).forEach(g => {
+            if (!g.tieneGeneral && g.escalas.length >= 2) {
+                mapa[`Total_${g.sigla}`] = `Puntaje general — ${g.nombre}`;
+                mapa[`PC_${g.sigla}`] = `Percentil — ${g.nombre}`;
+            }
+        });
+        return mapa;
+    }
+
+    // Estructura de pruebas para el análisis por dimensiones:
+    // [{ prueba, columnaGeneral, etiquetaGeneral, dimensiones: [{columna, etiqueta}] }]
+    obtenerEstructuraEscalas() {
+        const escalas = (this.configuracion && this.configuracion.pruebas) || [];
+        const porPrueba = new Map();
+        escalas.forEach(e => {
+            if (!e.prueba) return;
+            if (!porPrueba.has(e.prueba)) porPrueba.set(e.prueba, { general: null, dimensiones: [] });
+            const grupo = porPrueba.get(e.prueba);
+            if (e.tipo === 'general') grupo.general = e;
+            else grupo.dimensiones.push(e);
+        });
+        const estructura = [];
+        porPrueba.forEach((grupo, nombrePrueba) => {
+            if (!grupo.general || grupo.dimensiones.length === 0) return;
+            estructura.push({
+                prueba: nombrePrueba,
+                columnaGeneral: `Total_${grupo.general.nombreCorto}`,
+                etiquetaGeneral: grupo.general.nombre,
+                dimensiones: grupo.dimensiones.map(d => ({
+                    columna: `Total_${d.nombreCorto}`,
+                    etiqueta: d.nombre
+                }))
+            });
+        });
+        return estructura;
+    }
+
     // Agrupa las escalas por el nombre de su prueba. Cada grupo recibe una sigla
     // única (sin chocar con las siglas de las escalas) que se usa para el puntaje
     // general del test cuando NO hay Escala general configurada:
