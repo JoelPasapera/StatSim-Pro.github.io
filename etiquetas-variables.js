@@ -53,11 +53,31 @@ const EtiquetasVariables = {
     // muestra; con un CSV externo permite renombrar las variables a mano.
     // ----------------------------------------
 
+    // QUÉ COLUMNAS PUEDE RENOMBRAR EL USUARIO.
+    // Cambia MODO_RENOMBRADO para ajustarlo al instante:
+    //   'total' → solo puntajes de escala (prefijo Total_), NO ítems individuales
+    //   'todos' → todas las columnas numéricas del dataset
+    // (Para un criterio nuevo, agrega otra entrada en _FILTROS_RENOMBRADO y apunta el modo a ella.)
+    MODO_RENOMBRADO: 'total',
+    _FILTROS_RENOMBRADO: {
+        total: col => /^total_/i.test(col),
+        todos: () => true
+    },
+
     mostrarEditor(idContenedor, columnas, alAplicar) {
         const cont = document.getElementById(idContenedor);
         if (!cont) return;
 
-        const filas = columnas.map(col => `
+        const filtro = this._FILTROS_RENOMBRADO[this.MODO_RENOMBRADO] || this._FILTROS_RENOMBRADO.todos;
+        const columnasEditables = (columnas || []).filter(filtro);
+
+        // Sin columnas renombrables (p. ej. un CSV sin puntajes Total_): no se ofrece nada.
+        if (columnasEditables.length === 0) {
+            this.ocultarEditor(idContenedor);
+            return;
+        }
+
+        const filas = columnasEditables.map(col => `
             <tr>
                 <td><code>${col}</code></td>
                 <td>
@@ -75,10 +95,11 @@ const EtiquetasVariables = {
                         ✏️ Renombrar variables (etiquetas) — opcional
                     </summary>
                     <p class="help-text" style="margin-top: 0.5rem;">
-                        Asigna un nombre legible a cada columna (Ej: <code>Total_IE</code> →
-                        "Inteligencia emocional"). Las etiquetas se usarán en la pregunta, objetivos,
-                        hipótesis, resultados y discusión; los datos no se modifican. Deja vacío lo
-                        que no quieras renombrar.
+                        Asigna un nombre legible a cada <strong>puntaje de escala</strong> (Ej:
+                        <code>Total_IE</code> → "Inteligencia emocional"). Los ítems individuales no se
+                        renombran. Las etiquetas se usarán en la pregunta, objetivos, hipótesis,
+                        resultados y discusión; los datos no se modifican. Deja vacío lo que no quieras
+                        renombrar.
                     </p>
                     <div class="table-container">
                         <table class="table">
