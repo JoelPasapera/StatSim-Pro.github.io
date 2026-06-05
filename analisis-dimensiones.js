@@ -1,34 +1,70 @@
 // ========================================
-// ANÁLISIS POR DIMENSIONES (objetivos específicos)
-// Responde los objetivos específicos correlacionales de una tesis: cada
-// dimensión de una prueba frente a la variable general de la otra.
-// - La ESTRUCTURA (qué dimensiones pertenecen a qué prueba) la aporta el
-//   simulador vía EtiquetasVariables; con CSV externo se usa el mecanismo
-//   legado del analizador si fue configurado.
-// - El CÁLCULO lo hace AnalizadorEstadistico.calcularCorrelacion (normalidad
-//   por par → Pearson/Spearman automático, igual que el análisis principal).
-// - La REDACCIÓN sale de InterpretacionesEstadisticas (fuente única de prosa).
+// ANÁLISIS POR DIMENSIONES (objetivos específicos BASADOS EN LOS DATOS)
+// Flujo: (1) se arman TODOS los pares candidatos dimensión ↔ variable general;
+// (2) CribaCorrelaciones los evalúa de forma vectorizada (normalidad por
+// columna → Pearson/Spearman, |r|); (3) solo los pares con |r| ≥ umbral,
+// ordenados de mayor a menor y hasta un máximo configurado, se convierten en
+// objetivos específicos y reciben el análisis completo del motor validado
+// (AnalizadorEstadistico.calcularCorrelacion) y la prosa central
+// (InterpretacionesEstadisticas).
 // ========================================
 
 const AnalisisDimensiones = {
 
-    // Punto de entrada. Devuelve true si renderizó (hay estructura aplicable).
+    _cacheCriba: { clave: null, criba: null },
+
+    // Construye los pares candidatos a partir de la estructura del simulador.
+    _candidatos(var1, var2) {
+        const E = (typeof EtiquetasVariables !== 'undefined') ? EtiquetasVariables : null;
+        if (!E) return [];
+        const candidatos = [];
+        const agregar = (prueba, columnaObjetivo) => {
+            const etObjetivo = E.etiqueta(columnaObjetivo);
+            prueba.dimensiones.forEach(dim => {
+                candidatos.push({
+                    columnaX: dim.columna,
+                    columnaY: columnaObjetivo,
+                    etiquetaX: dim.etiqueta,
+                    etiquetaY: etObjetivo,
+                    pruebaDeX: prueba.etiquetaGeneral || prueba.prueba
+                });
+            });
+        };
+        const p1 = E.pruebaConGeneral(var1);
+        const p2 = E.pruebaConGeneral(var2);
+        if (p1 && p1.dimensiones.length) agregar(p1, var2);
+        if (p2 && p2.dimensiones.length) agregar(p2, var1);
+        return candidatos;
+    },
+
+    // Criba (con caché por par de variables, para que el marco metodológico y
+    // el render usen EL MISMO resultado sin recalcular).
+    cribarObjetivos(var1, var2) {
+        if (typeof CribaCorrelaciones === 'undefined') return null;
+        const clave = `${var1}|${var2}`;
+        if (this._cacheCriba.clave === clave) return this._cacheCriba.criba;
+
+        const candidatos = this._candidatos(var1, var2);
+        if (candidatos.length === 0) return null;
+
+        const criba = CribaCorrelaciones.cribar(
+            AnalizadorEstadistico.obtenerDatos() || [],
+            candidatos,
+            AnalizadorEstadistico
+        );
+        this._cacheCriba = { clave, criba };
+        return criba;
+    },
+
+    // Punto de entrada de render. Devuelve true si renderizó.
     mostrar(var1, var2, tipoPrueba, unidadAnalisis, lugarContexto) {
         const container = document.getElementById('resultadosDimensiones');
         if (!container) return false;
 
-        const E = (typeof EtiquetasVariables !== 'undefined') ? EtiquetasVariables : null;
-        if (!E) return false;
+        const criba = this.cribarObjetivos(var1, var2);
+        if (!criba) return false;
 
-        // Bloques de análisis: si var1 es la escala general de una prueba con
-        // dimensiones, sus dimensiones se correlacionan con var2; y viceversa.
-        const bloques = [];
-        const p1 = E.pruebaConGeneral(var1);
-        const p2 = E.pruebaConGeneral(var2);
-        if (p1 && p1.dimensiones.length) bloques.push({ prueba: p1, columnaObjetivo: var2 });
-        if (p2 && p2.dimensiones.length) bloques.push({ prueba: p2, columnaObjetivo: var1 });
-        if (bloques.length === 0) return false;
-
+        const I = InterpretacionesEstadisticas;
         const contexto = (unidadAnalisis && lugarContexto)
             ? ` en ${unidadAnalisis} de ${lugarContexto}`
             : '';
@@ -36,124 +72,96 @@ const AnalisisDimensiones = {
         let html = `
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">🎯 Objetivos Específicos: Correlaciones por Dimensiones</h3>
+                    <h3 class="card-title">🎯 Objetivos Específicos basados en los datos</h3>
                 </div>
-                <p class="help-text">Cada tabla responde a los objetivos específicos del estudio: la relación de cada
-                dimensión con la variable general correspondiente. El método (Pearson o Spearman) se decide por par,
-                según la normalidad de ambas variables involucradas.</p>
+                <p class="help-text">El programa evaluó TODAS las dimensiones frente a su variable de contraste
+                (normalidad por variable → Pearson o Spearman sobre rangos) y seleccionó como objetivos específicos
+                únicamente las correlaciones con |r| ≥ ${criba.umbral.toFixed(2)} (efecto mínimo reportable según
+                Cohen, 1988), ordenadas de mayor a menor magnitud absoluta, hasta un máximo de ${criba.maximo}.</p>
         `;
 
-        bloques.forEach(bloque => {
-            html += this._renderBloque(bloque, tipoPrueba, contexto);
+        // ---- Tabla de criba (transparencia del proceso de selección) ----
+        html += `
+                <div class="result-box" style="margin-top: 0.75rem;">
+                    <h4>Criba de candidatos (n = ${criba.n})</h4>
+                    <div class="table-container">
+                    <table class="table">
+                        <thead><tr>
+                            <th>#</th><th>Par evaluado</th><th>Método</th>
+                            <th>Coeficiente</th><th>|coef|</th><th>≥ umbral</th><th>Seleccionado</th>
+                        </tr></thead>
+                        <tbody>
+        `;
+        criba.evaluados.forEach((e, i) => {
+            const abs = Math.abs(e.coeficiente);
+            html += `<tr>
+                <td>${i + 1}</td>
+                <td>${e.etiquetaX} ↔ ${e.etiquetaY}</td>
+                <td>${e.valido ? e.metodo : '—'}</td>
+                <td>${e.valido ? e.coeficiente.toFixed(3) : 'no calculable'}</td>
+                <td>${e.valido ? abs.toFixed(3) : '—'}</td>
+                <td>${e.superaUmbral ? '✔' : '✘'}</td>
+                <td>${e.seleccionado ? '✅ Objetivo específico' : '—'}</td>
+            </tr>`;
+        });
+        html += `</tbody></table></div>
+                 <p style="margin: 0.5rem 0 0;">${I.generarResumenCriba(criba)}</p>
+                 </div>`;
+
+        // ---- Análisis completo SOLO de los seleccionados ----
+        const verbos = I._VERBOS_CORRELACIONALES;
+        criba.seleccionados.forEach((sel, i) => {
+            let resultado = null, error = null;
+            try {
+                // Reporte fino con el motor estadístico validado
+                resultado = AnalizadorEstadistico.calcularCorrelacion(sel.columnaX, sel.columnaY, tipoPrueba);
+            } catch (e) { error = e.message; }
+
+            const objetivo = `${verbos[i % verbos.length]} la relación entre la dimensión ${sel.etiquetaX} de ${sel.pruebaDeX} ${I._conj(sel.etiquetaY)} ${sel.etiquetaY}${contexto}.`;
+
+            html += `
+                <div class="result-box" style="margin-top: 1rem;">
+                    <h4>Objetivo específico ${i + 1}: ${objetivo}</h4>
+            `;
+            if (error || !resultado) {
+                html += `<p>No se pudo calcular el análisis completo: ${error || 'sin resultado'}</p></div>`;
+                return;
+            }
+            const esSp = I._esSpearman(resultado.tipoCorrelacion);
+            const ic = resultado.intervaloConfianza;
+            const icTxt = (ic && Number.isFinite(ic.inferior)) ? `[${ic.inferior.toFixed(3)}, ${ic.superior.toFixed(3)}]` : '—';
+            const sig = resultado.pValor < 0.05;
+            html += `
+                    <div class="table-container">
+                    <table class="table">
+                        <thead><tr>
+                            <th>n</th><th>Método</th><th>Coeficiente</th><th>p-valor</th>
+                            <th>IC 95%</th><th>Magnitud</th><th>Decisión</th>
+                        </tr></thead>
+                        <tbody><tr>
+                            <td>${resultado.n}</td>
+                            <td>${esSp ? 'Spearman (ρ)' : 'Pearson (r)'}</td>
+                            <td><strong>${resultado.coeficiente.toFixed(3)}</strong></td>
+                            <td>${I._fmtP(resultado.pValor)}</td>
+                            <td>${icTxt}</td>
+                            <td>${resultado.interpretacion.fuerza} (${resultado.interpretacion.direccion})</td>
+                            <td>${sig ? '✅ Significativa' : '➖ No significativa'}</td>
+                        </tr></tbody>
+                    </table>
+                    </div>
+                    <details style="margin: 0.5rem 0 0;">
+                        <summary style="cursor: pointer; font-weight: 600;">Interpretación profesional</summary>
+                        <p style="margin: 0.5rem 0 0;">${I.generarInterpretacionCorrelacion(
+                            `la dimensión ${sel.etiquetaX}`, sel.etiquetaY, resultado)}</p>
+                    </details>
+                </div>
+            `;
         });
 
         html += `</div>`;
         container.innerHTML = html;
         container.style.display = 'block';
         return true;
-    },
-
-    // Un bloque = las dimensiones de una prueba frente a una variable objetivo.
-    _renderBloque(bloque, tipoPrueba, contexto) {
-        const I = InterpretacionesEstadisticas;
-        const E = EtiquetasVariables;
-        const etObjetivo = E.etiqueta(bloque.columnaObjetivo);
-        const verbos = I._VERBOS_CORRELACIONALES;
-
-        // Calcular cada par (con tolerancia a fallos por dimensión)
-        const filas = [];
-        bloque.prueba.dimensiones.forEach((dim, idx) => {
-            let resultado = null, error = null;
-            try {
-                resultado = AnalizadorEstadistico.calcularCorrelacion(dim.columna, bloque.columnaObjetivo, tipoPrueba);
-            } catch (e) {
-                error = e.message;
-            }
-            filas.push({ dim, idx, resultado, error });
-        });
-
-        let html = `
-            <div class="result-box" style="margin-top: 1rem;">
-                <h4>${bloque.prueba.etiquetaGeneral ? `Dimensiones de ${bloque.prueba.etiquetaGeneral}` : bloque.prueba.prueba} → ${etObjetivo}</h4>
-                <ol style="margin: 0.5rem 0 1rem 1.25rem;">
-        `;
-        filas.forEach((f, i) => {
-            const verbo = verbos[i % verbos.length];
-            html += `<li>${verbo} la relación entre la dimensión ${f.dim.etiqueta} de ${bloque.prueba.etiquetaGeneral} y ${etObjetivo}${contexto}.</li>`;
-        });
-        html += `</ol>
-                <div class="table-container">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Dimensión</th><th>n</th><th>Método</th><th>Coeficiente</th>
-                            <th>p-valor</th><th>IC 95%</th><th>Magnitud</th><th>Decisión</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        const filasResumen = [];
-        filas.forEach(f => {
-            if (f.error || !f.resultado) {
-                html += `<tr><td>${f.dim.etiqueta}</td><td colspan="7">No se pudo calcular: ${f.error || 'sin resultado'}</td></tr>`;
-                return;
-            }
-            const r = f.resultado;
-            const esSp = I._esSpearman(r.tipoCorrelacion);
-            const sig = r.pValor < 0.05;
-            const ic = r.intervaloConfianza;
-            const icTxt = (ic && Number.isFinite(ic.inferior)) ? `[${ic.inferior.toFixed(3)}, ${ic.superior.toFixed(3)}]` : '—';
-            filasResumen.push({
-                etiquetaDimension: f.dim.etiqueta,
-                coeficiente: r.coeficiente,
-                pValor: r.pValor,
-                significativa: sig,
-                fuerza: r.interpretacion.fuerza,
-                tipoCorrelacion: r.tipoCorrelacion
-            });
-            html += `
-                <tr>
-                    <td><strong>${f.dim.etiqueta}</strong></td>
-                    <td>${r.n}</td>
-                    <td>${esSp ? 'Spearman (ρ)' : 'Pearson (r)'}</td>
-                    <td><strong>${r.coeficiente.toFixed(3)}</strong></td>
-                    <td>${I._fmtP(r.pValor)}</td>
-                    <td>${icTxt}</td>
-                    <td>${r.interpretacion.fuerza} (${r.interpretacion.direccion})</td>
-                    <td>${sig ? '✅ Significativa' : '➖ No significativa'}</td>
-                </tr>
-            `;
-        });
-
-        html += `</tbody></table></div>`;
-
-        // Interpretación individual por dimensión (plegable, reutiliza la prosa central)
-        filas.forEach(f => {
-            if (f.error || !f.resultado) return;
-            const texto = I.generarInterpretacionCorrelacion(
-                `la dimensión ${f.dim.etiqueta}`, etObjetivo, f.resultado
-            );
-            html += `
-                <details style="margin: 0.5rem 0;">
-                    <summary style="cursor: pointer; font-weight: 600;">Interpretación — ${f.dim.etiqueta} ↔ ${etObjetivo}</summary>
-                    <p style="margin: 0.5rem 0 0;">${texto}</p>
-                </details>
-            `;
-        });
-
-        // Síntesis profesional del bloque
-        if (filasResumen.length > 0) {
-            html += `
-                <div class="result-box" style="margin-top: 0.75rem; background: var(--color-bg-secondary);">
-                    <strong>Síntesis del bloque:</strong>
-                    <p style="margin: 0.4rem 0 0;">${I.generarResumenDimensiones(etObjetivo, filasResumen)}</p>
-                </div>
-            `;
-        }
-
-        html += `</div>`;
-        return html;
     }
 };
 
