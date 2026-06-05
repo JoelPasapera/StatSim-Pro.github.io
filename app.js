@@ -698,16 +698,15 @@ function generarMarcoParaAnalisis(var1, var2, et1, et2, unidadAnalisis, lugarCon
         return AnalizadorEstadistico.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
     }
 
-    // Dimensiones para los objetivos específicos: SI HAY CRIBA, solo las
-    // seleccionadas por los datos (|r| ≥ umbral, top-k, orden de magnitud);
-    // sin criba, todas las de la estructura (comportamiento clásico).
-    let dims1 = null, dims2 = null;
-    if (criba && criba.seleccionados) {
-        dims1 = criba.seleccionados.filter(s => s.columnaY === var2).map(s => s.etiquetaX);
-        dims2 = criba.seleccionados.filter(s => s.columnaY === var1).map(s => s.etiquetaX);
-        if (dims1.length === 0) dims1 = null;
-        if (dims2.length === 0) dims2 = null;
-    } else {
+    // Objetivos específicos: SI HAY CRIBA, las frases salen directamente de la
+    // selección basada en datos (mismo orden y redacción que la sección 🎯);
+    // sin criba, todas las dimensiones de la estructura (comportamiento clásico).
+    let dims1 = null, dims2 = null, objetivosPersonalizados = null;
+    if (criba && criba.seleccionados && criba.seleccionados.length > 0) {
+        objetivosPersonalizados = InterpretacionesEstadisticas.generarObjetivosDesdeSeleccion(
+            criba.seleccionados, { unidadAnalisis, lugarContexto }
+        );
+    } else if (!criba) {
         const dimsDe = col => {
             const p = EtiquetasVariables.pruebaConGeneral(col);
             return p ? p.dimensiones.map(d => d.etiqueta) : null;
@@ -719,6 +718,7 @@ function generarMarcoParaAnalisis(var1, var2, et1, et2, unidadAnalisis, lugarCon
     return InterpretacionesEstadisticas.generarMarcoMetodologico(et1, et2, unidadAnalisis, lugarContexto, {
         dimensiones1: dims1,
         dimensiones2: dims2,
+        objetivosPersonalizados: objetivosPersonalizados,
         sociodemograficos: obtenerColumnasCategoricas(4),
         configuracion: AnalizadorEstadistico.obtenerMarcoInvestigacion
             ? AnalizadorEstadistico.obtenerMarcoInvestigacion()
