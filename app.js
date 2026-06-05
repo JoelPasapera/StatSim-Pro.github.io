@@ -444,6 +444,15 @@ function cargarDatosGenerados() {
         }
         window.AnalizadorEstadistico.cargarDatos(datos);
 
+        // Registrar etiquetas humanas y estructura de pruebas (estilo SPSS):
+        // la interfaz mostrará "Inteligencia Cognitiva" en vez de "Total_IC".
+        if (typeof EtiquetasVariables !== 'undefined' && generadorDatos.obtenerEtiquetas) {
+            EtiquetasVariables.fijar(
+                generadorDatos.obtenerEtiquetas(),
+                generadorDatos.obtenerEstructuraEscalas()
+            );
+        }
+
         mostrarDatosCargados(datos);
         mostrarToast('Datos cargados exitosamente', 'success');
 
@@ -514,15 +523,20 @@ function mostrarDatosCargados(datos) {
 
     columnasNumericas.forEach(col => {
         const nombre = col.trim();
+        // Mostrar la etiqueta humana ("Inteligencia Cognitiva (Total_IC)");
+        // el value conserva el nombre técnico de la columna.
+        const texto = (typeof EtiquetasVariables !== 'undefined')
+            ? EtiquetasVariables.etiquetaConColumna(nombre)
+            : nombre;
 
         const option1 = document.createElement('option');
         option1.value = nombre;
-        option1.textContent = nombre;
+        option1.textContent = texto;
         select1.appendChild(option1);
 
         const option2 = document.createElement('option');
         option2.value = nombre;
-        option2.textContent = nombre;
+        option2.textContent = texto;
         select2.appendChild(option2);
     });
 
@@ -600,27 +614,80 @@ function ejecutarAnalisis() {
 }
 
 // Análisis de correlación entre dos variables cuantitativas.
+// var1/var2 son NOMBRES DE COLUMNA (acceso a datos); et1/et2 son las etiquetas
+// humanas que se usan en todos los textos visibles.
 function ejecutarCorrelacion(var1, var2, tipoPrueba) {
     const unidadAnalisis = document.getElementById('unidadAnalisis').value;
     const lugarContexto = document.getElementById('lugarContexto').value;
 
-    const marco = AnalizadorEstadistico.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
+    const hayEtiquetas = (typeof EtiquetasVariables !== 'undefined');
+    const et1 = hayEtiquetas ? EtiquetasVariables.etiqueta(var1) : var1;
+    const et2 = hayEtiquetas ? EtiquetasVariables.etiqueta(var2) : var2;
+
+    const marco = generarMarcoParaAnalisis(var1, var2, et1, et2, unidadAnalisis, lugarContexto);
     const resultado = AnalizadorEstadistico.calcularCorrelacion(var1, var2, tipoPrueba);
 
     mostrarMarcoMetodologico(marco);
-    mostrarDescriptivas(var1, var2, resultado);
-    mostrarFiabilidad(var1, var2);
-    mostrarPruebasNormalidad(var1, var2, resultado);
-    mostrarCorrelacion(var1, var2, resultado);
-    mostrarRegresion(var1, var2, resultado);
-    mostrarDispersion(var1, var2, resultado);
-    mostrarDecision(var1, var2, resultado);
-    mostrarReporteAPA(var1, var2, resultado);
-    mostrarDimensionesSiAplica(var1, var2, tipoPrueba);
-    mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto);
-    mostrarReferencias(var1, var2, resultado);
+    mostrarDescriptivas(et1, et2, resultado);
+    mostrarFiabilidad(var1, var2); // Cronbach accede a las columnas de ítems: nombres técnicos
+    mostrarPruebasNormalidad(et1, et2, resultado);
+    mostrarCorrelacion(et1, et2, resultado);
+    mostrarRegresion(et1, et2, resultado);
+    mostrarDispersion(et1, et2, resultado);
+    mostrarDecision(et1, et2, resultado);
+    mostrarReporteAPA(et1, et2, resultado);
+
+    // Objetivos específicos: correlaciones por dimensiones (estructura del
+    // simulador); si no hay estructura, se conserva el mecanismo legado.
+    const dimensionesRenderizadas = (typeof AnalisisDimensiones !== 'undefined')
+        && AnalisisDimensiones.mostrar(var1, var2, tipoPrueba, unidadAnalisis, lugarContexto);
+    if (!dimensionesRenderizadas) {
+        mostrarDimensionesSiAplica(var1, var2, tipoPrueba);
+    }
+
+    mostrarDiscusion(et1, et2, resultado, unidadAnalisis, lugarContexto, marco);
+    mostrarReferencias(et1, et2, resultado);
 
     inicializarGraficos();
+}
+
+// Construye el marco metodológico con la información más rica disponible:
+// con estructura del simulador usa las dimensiones reales (etiquetas) y las
+// variables sociodemográficas categóricas para los objetivos comparativos;
+// sin estructura, delega en el mecanismo legado del analizador.
+function generarMarcoParaAnalisis(var1, var2, et1, et2, unidadAnalisis, lugarContexto) {
+    const hayEstructura = (typeof EtiquetasVariables !== 'undefined') && EtiquetasVariables.tieneEtiquetas();
+    if (!hayEstructura) {
+        return AnalizadorEstadistico.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
+    }
+
+    const dimsDe = col => {
+        const p = EtiquetasVariables.pruebaConGeneral(col);
+        return p ? p.dimensiones.map(d => d.etiqueta) : null;
+    };
+
+    return InterpretacionesEstadisticas.generarMarcoMetodologico(et1, et2, unidadAnalisis, lugarContexto, {
+        dimensiones1: dimsDe(var1),
+        dimensiones2: dimsDe(var2),
+        sociodemograficos: obtenerColumnasCategoricas(4),
+        configuracion: AnalizadorEstadistico.obtenerMarcoInvestigacion
+            ? AnalizadorEstadistico.obtenerMarcoInvestigacion()
+            : null
+    });
+}
+
+// Columnas categóricas del dataset cargado (texto, sin contar ID), para los
+// objetivos comparativos del marco. Limitadas a un máximo razonable.
+function obtenerColumnasCategoricas(maximo) {
+    const datos = AnalizadorEstadistico.obtenerDatos() || [];
+    if (datos.length === 0) return [];
+    return Object.keys(datos[0])
+        .filter(col => col !== 'ID')
+        .filter(col => {
+            const v = datos[0][col];
+            return typeof v === 'string' && isNaN(parseFloat(v));
+        })
+        .slice(0, maximo || 4);
 }
 
 // Comparación de una variable cuantitativa (var1) entre los grupos definidos
@@ -1022,11 +1089,18 @@ function mostrarDecision(var1, var2, resultado) {
     container.style.display = 'block';
 }
 
-function mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto) {
+function mostrarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto, marco) {
     const container = document.getElementById('resultadosDiscusion');
     if (!container) return;
 
-    const discusion = AnalizadorEstadistico.generarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto);
+    // Reutilizar el marco ya construido (con dimensiones reales y objetivos
+    // comparativos) para que la discusión y la tarjeta de marco digan LO MISMO.
+    const discusion = marco
+        ? InterpretacionesEstadisticas.generarDiscusion(
+            var1, var2, resultado,
+            AnalizadorEstadistico.pruebaHipotesis(resultado),
+            unidadAnalisis, lugarContexto, { marco })
+        : AnalizadorEstadistico.generarDiscusion(var1, var2, resultado, unidadAnalisis, lugarContexto);
 
     const html = `
         <div class="result-section">
