@@ -45,6 +45,76 @@ const EtiquetasVariables = {
     // Devuelve la prueba cuya escala general es esta columna (o null).
     pruebaConGeneral(columna) {
         return this._estructura.find(p => p.columnaGeneral === columna) || null;
+    },
+
+    // ----------------------------------------
+    // EDITOR DE ETIQUETAS (solo para bases de datos EXTERNAS)
+    // Con datos del simulador las etiquetas llegan solas y este editor no se
+    // muestra; con un CSV externo permite renombrar las variables a mano.
+    // ----------------------------------------
+
+    mostrarEditor(idContenedor, columnas, alAplicar) {
+        const cont = document.getElementById(idContenedor);
+        if (!cont) return;
+
+        const filas = columnas.map(col => `
+            <tr>
+                <td><code>${col}</code></td>
+                <td>
+                    <input type="text" class="input input-sm" data-columna="${col}"
+                        value="${(this._mapa[col] && this._mapa[col] !== col) ? this._mapa[col] : ''}"
+                        placeholder="Ej: Inteligencia emocional" maxlength="120">
+                </td>
+            </tr>
+        `).join('');
+
+        cont.innerHTML = `
+            <div class="card">
+                <details>
+                    <summary style="cursor: pointer; font-weight: 700; padding: 0.25rem 0;">
+                        ✏️ Renombrar variables (etiquetas) — opcional
+                    </summary>
+                    <p class="help-text" style="margin-top: 0.5rem;">
+                        Asigna un nombre legible a cada columna (Ej: <code>Total_IE</code> →
+                        "Inteligencia emocional"). Las etiquetas se usarán en la pregunta, objetivos,
+                        hipótesis, resultados y discusión; los datos no se modifican. Deja vacío lo
+                        que no quieras renombrar.
+                    </p>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead><tr><th>Columna</th><th>Etiqueta (nombre completo)</th></tr></thead>
+                            <tbody>${filas}</tbody>
+                        </table>
+                    </div>
+                    <button type="button" id="btnAplicarEtiquetas" class="btn btn-primary" style="margin-top: 0.5rem;">
+                        Aplicar etiquetas
+                    </button>
+                </details>
+            </div>
+        `;
+        cont.style.display = 'block';
+
+        const self = this;
+        const btn = document.getElementById('btnAplicarEtiquetas');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                const mapa = {};
+                cont.querySelectorAll('input[data-columna]').forEach(input => {
+                    const etiqueta = input.value.trim();
+                    if (etiqueta) mapa[input.getAttribute('data-columna')] = etiqueta;
+                });
+                // Base externa: hay etiquetas pero no estructura de pruebas
+                self.fijar(mapa, []);
+                if (typeof alAplicar === 'function') alAplicar();
+            });
+        }
+    },
+
+    ocultarEditor(idContenedor) {
+        const cont = document.getElementById(idContenedor);
+        if (!cont) return;
+        cont.innerHTML = '';
+        cont.style.display = 'none';
     }
 };
 
