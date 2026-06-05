@@ -16,7 +16,6 @@ const AnalisisDimensiones = {
     // Construye los pares candidatos a partir de la estructura del simulador.
     _candidatos(var1, var2) {
         const E = (typeof EtiquetasVariables !== 'undefined') ? EtiquetasVariables : null;
-        if (!E) return [];
         const candidatos = [];
         const agregar = (prueba, columnaObjetivo) => {
             const etObjetivo = E.etiqueta(columnaObjetivo);
@@ -30,8 +29,8 @@ const AnalisisDimensiones = {
                 });
             });
         };
-        const p1 = E.pruebaConGeneral(var1);
-        const p2 = E.pruebaConGeneral(var2);
+        const p1 = E ? E.pruebaConGeneral(var1) : null;
+        const p2 = E ? E.pruebaConGeneral(var2) : null;
         // PRIORIDAD 1 (obligatorios): dimensión ↔ escala general de la otra prueba
         if (p1 && p1.dimensiones.length) agregar(p1, var2);
         if (p2 && p2.dimensiones.length) agregar(p2, var1);
@@ -52,6 +51,41 @@ const AnalisisDimensiones = {
                     });
                 });
             });
+        }
+        // FALLBACK PARA BASES EXTERNAS (sin estructura del simulador): se
+        // reconstruyen los candidatos desde los PREFIJOS de columna
+        // (Dimension_/General_). La pertenencia dimensión→prueba no es
+        // deducible del nombre, así que cada dimensión se contrasta con ambas
+        // variables seleccionadas (prioridad 1) y entre dimensiones
+        // (prioridad 2); la criba decide con los datos.
+        if (candidatos.length === 0) {
+            const datos = (typeof AnalizadorEstadistico !== 'undefined' && AnalizadorEstadistico.obtenerDatos)
+                ? (AnalizadorEstadistico.obtenerDatos() || []) : [];
+            if (datos.length === 0) return candidatos;
+            const cols = Object.keys(datos[0]);
+            const dims = cols.filter(c => /^dimension_/i.test(c));
+            if (dims.length === 0) return candidatos;
+            const et = c => E ? E.etiqueta(c) : c;
+            const objetivosCols = [var1, var2].filter(v => v && !/^dimension_/i.test(v));
+            dims.forEach(d => {
+                objetivosCols.forEach(o => {
+                    if (d === o) return;
+                    candidatos.push({
+                        columnaX: d, columnaY: o,
+                        etiquetaX: et(d), etiquetaY: et(o),
+                        prioridad: 1, tipoPar: 'general-dim'
+                    });
+                });
+            });
+            for (let i = 0; i < dims.length; i++) {
+                for (let j = i + 1; j < dims.length; j++) {
+                    candidatos.push({
+                        columnaX: dims[i], columnaY: dims[j],
+                        etiquetaX: et(dims[i]), etiquetaY: et(dims[j]),
+                        prioridad: 2, tipoPar: 'dim-dim'
+                    });
+                }
+            }
         }
         return candidatos;
     },
