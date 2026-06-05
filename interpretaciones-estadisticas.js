@@ -330,10 +330,12 @@ const InterpretacionesEstadisticas = {
     // sel: {etiquetaX, etiquetaY, pruebaDeX, pruebaDeY?, tipoPar}; i: índice (rota el verbo).
     generarObjetivoDeParSeleccionado(sel, i, contexto) {
         const verbo = this._VERBOS_CORRELACIONALES[i % this._VERBOS_CORRELACIONALES.length];
+        const deX = sel.pruebaDeX ? ` de ${sel.pruebaDeX}` : '';
         if (sel.tipoPar === 'dim-dim') {
-            return `${verbo} la relación entre la dimensión ${sel.etiquetaX} de ${sel.pruebaDeX} y la dimensión ${sel.etiquetaY} de ${sel.pruebaDeY}${contexto || ''}.`;
+            const deY = sel.pruebaDeY ? ` de ${sel.pruebaDeY}` : '';
+            return `${verbo} la relación entre la dimensión ${sel.etiquetaX}${deX} y la dimensión ${sel.etiquetaY}${deY}${contexto || ''}.`;
         }
-        return `${verbo} la relación entre la dimensión ${sel.etiquetaX} de ${sel.pruebaDeX} ${this._conj(sel.etiquetaY)} ${sel.etiquetaY}${contexto || ''}.`;
+        return `${verbo} la relación entre la dimensión ${sel.etiquetaX}${deX} ${this._conj(sel.etiquetaY)} ${sel.etiquetaY}${contexto || ''}.`;
     },
 
     // Lista completa de objetivos desde la selección de la criba (mismo orden).
