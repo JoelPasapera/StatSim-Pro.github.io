@@ -21,7 +21,7 @@ const CribaCorrelaciones = {
     // Cohen (1988): |r| ≥ .10 efecto pequeño (mínimo reportable), .30 mediano, .50 grande.
     UMBRAL_ABS: 0.10,
     // Máximo de objetivos específicos correlacionales a seleccionar.
-    MAX_OBJETIVOS: 2,
+    MAX_OBJETIVOS: 5,
 
     // datos: arreglo de filas {col: valor}; pares: [{columnaX, columnaY, ...meta}];
     // analizador: instancia con evaluarNormalidad(valores).
@@ -110,17 +110,27 @@ const CribaCorrelaciones = {
             });
         });
 
-        // Top-k por |r| en UNA pasada (inserción en lista acotada de tamaño k)
+        // Selección top-k por |r| RESPETANDO PRIORIDADES: los pares con
+        // prioridad 1 (dimensión ↔ escala general) entran SÍ O SÍ primero,
+        // de mayor a menor |r|; los de prioridad 2 (dimensión ↔ dimensión)
+        // completan los cupos restantes. Inserción acotada por nivel: O(m).
         const k = this.MAX_OBJETIVOS;
         const seleccionados = [];
-        for (const e of evaluados) {
-            if (!e.valido || !e.superaUmbral) continue;
-            let pos = seleccionados.length;
-            while (pos > 0 && Math.abs(seleccionados[pos - 1].coeficiente) < Math.abs(e.coeficiente)) pos--;
-            if (pos < k) {
-                seleccionados.splice(pos, 0, e);
-                if (seleccionados.length > k) seleccionados.pop();
+        const niveles = [...new Set(evaluados.map(e => e.prioridad || 1))].sort((a, b) => a - b);
+        for (const nivel of niveles) {
+            if (seleccionados.length >= k) break;
+            const cupo = k; // la lista global no puede exceder k
+            const delNivel = [];
+            for (const e of evaluados) {
+                if (!e.valido || !e.superaUmbral || (e.prioridad || 1) !== nivel) continue;
+                let pos = delNivel.length;
+                while (pos > 0 && Math.abs(delNivel[pos - 1].coeficiente) < Math.abs(e.coeficiente)) pos--;
+                if (pos < cupo - seleccionados.length) {
+                    delNivel.splice(pos, 0, e);
+                    if (delNivel.length > cupo - seleccionados.length) delNivel.pop();
+                }
             }
+            seleccionados.push(...delNivel);
         }
         seleccionados.forEach(s => { s.seleccionado = true; });
 
