@@ -32,8 +32,27 @@ const AnalisisDimensiones = {
         };
         const p1 = E.pruebaConGeneral(var1);
         const p2 = E.pruebaConGeneral(var2);
+        // PRIORIDAD 1 (obligatorios): dimensión ↔ escala general de la otra prueba
         if (p1 && p1.dimensiones.length) agregar(p1, var2);
         if (p2 && p2.dimensiones.length) agregar(p2, var1);
+        candidatos.forEach(c => { c.prioridad = 1; c.tipoPar = 'general-dim'; });
+        // PRIORIDAD 2 (relleno hasta el máximo): dimensión ↔ dimensión entre pruebas
+        if (p1 && p2 && p1.dimensiones.length && p2.dimensiones.length) {
+            p1.dimensiones.forEach(d1 => {
+                p2.dimensiones.forEach(d2 => {
+                    candidatos.push({
+                        columnaX: d1.columna,
+                        columnaY: d2.columna,
+                        etiquetaX: d1.etiqueta,
+                        etiquetaY: d2.etiqueta,
+                        pruebaDeX: p1.etiquetaGeneral || p1.prueba,
+                        pruebaDeY: p2.etiquetaGeneral || p2.prueba,
+                        prioridad: 2,
+                        tipoPar: 'dim-dim'
+                    });
+                });
+            });
+        }
         return candidatos;
     },
 
@@ -117,7 +136,7 @@ const AnalisisDimensiones = {
                 resultado = AnalizadorEstadistico.calcularCorrelacion(sel.columnaX, sel.columnaY, tipoPrueba);
             } catch (e) { error = e.message; }
 
-            const objetivo = `${verbos[i % verbos.length]} la relación entre la dimensión ${sel.etiquetaX} de ${sel.pruebaDeX} ${I._conj(sel.etiquetaY)} ${sel.etiquetaY}${contexto}.`;
+            const objetivo = I.generarObjetivoDeParSeleccionado(sel, i, contexto);
 
             html += `
                 <div class="result-box" style="margin-top: 1rem;">
