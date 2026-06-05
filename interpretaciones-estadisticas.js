@@ -26,6 +26,11 @@ const InterpretacionesEstadisticas = {
         return Number.isFinite(x) ? x.toFixed(dec) : '—';
     },
 
+    // Conjunción española correcta: "y" → "e" ante palabras que inician con i/hi
+    _conj(siguientePalabra) {
+        return /^h?i(?![eé])/i.test(String(siguientePalabra).trim()) ? 'e' : 'y';
+    },
+
     // Punto de corte de Cohen (1988) para correlaciones: .10 / .30 / .50
     _benchmarkCohen(rAbs) {
         if (rAbs < 0.1) return 'inferior al umbral de efecto pequeño';
@@ -257,39 +262,90 @@ const InterpretacionesEstadisticas = {
 
     generarPreguntaInvestigacion(var1, var2, unidadAnalisis, lugarContexto) {
         if (!unidadAnalisis || !lugarContexto) {
-            return `¿Cuál es la relación entre ${var1} y ${var2}?`;
+            return `¿Cuál es la relación entre ${var1} ${this._conj(var2)} ${var2}?`;
         }
-        return `¿Cuál es la relación entre ${var1} y ${var2} en ${unidadAnalisis} de ${lugarContexto}?`;
+        return `¿Cuál es la relación entre ${var1} ${this._conj(var2)} ${var2} en ${unidadAnalisis} de ${lugarContexto}?`;
     },
 
     generarObjetivoGeneral(var1, var2, unidadAnalisis, lugarContexto) {
         if (!unidadAnalisis || !lugarContexto) {
-            return `Determinar la relación entre ${var1} y ${var2}.`;
+            return `Determinar la relación entre ${var1} ${this._conj(var2)} ${var2}.`;
         }
-        return `Determinar la relación entre ${var1} y ${var2} en ${unidadAnalisis} de ${lugarContexto}.`;
+        return `Determinar la relación entre ${var1} ${this._conj(var2)} ${var2} en ${unidadAnalisis} de ${lugarContexto}.`;
     },
 
-    // dimensiones1/dimensiones2: objetos {nombreDimension: ...} o null.
-    generarObjetivosEspecificos(var1, var2, dimensiones1, dimensiones2) {
+    // dimensiones1/dimensiones2: objetos {nombreDimension: ...} o arreglos de
+    // nombres, o null. opciones (opcional): { unidadAnalisis, lugarContexto,
+    // sociodemograficos: ['Sexo', 'Grado académico', ...] }.
+    // Redacción profesional: verbos académicos rotativos (taxonomía de objetivos),
+    // correlacionales (dimensión ↔ variable general, en ambas direcciones) y
+    // comparativos según variables sociodemográficas.
+    _VERBOS_CORRELACIONALES: ['Identificar', 'Establecer', 'Precisar', 'Determinar', 'Indicar', 'Examinar'],
+
+    _nombresDe(dimensiones) {
+        if (!dimensiones) return [];
+        return Array.isArray(dimensiones) ? dimensiones.slice() : Object.keys(dimensiones);
+    },
+
+    generarObjetivosEspecificos(var1, var2, dimensiones1, dimensiones2, opciones = {}) {
+        const dims1 = this._nombresDe(dimensiones1);
+        const dims2 = this._nombresDe(dimensiones2);
+        const contexto = (opciones.unidadAnalisis && opciones.lugarContexto)
+            ? ` en ${opciones.unidadAnalisis} de ${opciones.lugarContexto}`
+            : '';
         const objetivos = [];
-        if (dimensiones1 && dimensiones2) {
-            Object.keys(dimensiones1).forEach(d1 => {
-                Object.keys(dimensiones2).forEach(d2 => {
-                    objetivos.push(`Establecer el vínculo entre '${d1}' de ${var1} y '${d2}' de ${var2}.`);
-                });
-            });
-        } else if (dimensiones1) {
-            Object.keys(dimensiones1).forEach(d1 => {
-                objetivos.push(`Establecer el vínculo entre '${d1}' de ${var1} y ${var2}.`);
-            });
-        } else if (dimensiones2) {
-            Object.keys(dimensiones2).forEach(d2 => {
-                objetivos.push(`Establecer el vínculo entre ${var1} y '${d2}' de ${var2}.`);
-            });
-        } else {
-            objetivos.push(`Establecer el vínculo entre ${var1} y ${var2}.`);
+        let v = 0;
+        const verbo = () => this._VERBOS_CORRELACIONALES[(v++) % this._VERBOS_CORRELACIONALES.length];
+
+        // 1) Correlacionales: cada dimensión de una variable con la OTRA variable
+        //    (estructura estándar de tesis: dimensión → constructo general).
+        dims1.forEach(d => {
+            objetivos.push(`${verbo()} la relación entre la dimensión ${d} de ${var1} ${this._conj(var2)} ${var2}${contexto}.`);
+        });
+        dims2.forEach(d => {
+            objetivos.push(`${verbo()} la relación entre la dimensión ${d} de ${var2} ${this._conj(var1)} ${var1}${contexto}.`);
+        });
+        if (dims1.length === 0 && dims2.length === 0) {
+            objetivos.push(`Establecer el vínculo entre ${var1} ${this._conj(var2)} ${var2}${contexto}.`);
         }
+
+        // 2) Comparativos: diferencias según variables sociodemográficas.
+        const socios = (opciones.sociodemograficos || []).filter(s => !!s);
+        socios.forEach((s, i) => {
+            const verboComp = i % 2 === 0 ? 'Analizar las diferencias' : 'Comparar los niveles';
+            objetivos.push(`${verboComp} de ${var1} ${this._conj(var2)} ${var2} según ${s.toLowerCase()}${contexto}.`);
+        });
+
         return objetivos;
+    },
+
+    // Resumen profesional del análisis por dimensiones: cuántos objetivos
+    // específicos correlacionales se confirmaron, rango de coeficientes y
+    // dimensión con la asociación más fuerte.
+    // filas: [{ etiquetaDimension, coeficiente, pValor, significativa, fuerza, tipoCorrelacion }]
+    generarResumenDimensiones(etiquetaObjetivo, filas) {
+        if (!filas || filas.length === 0) return '';
+        const sig = filas.filter(f => f.significativa);
+        const abs = filas.map(f => Math.abs(f.coeficiente));
+        const minC = Math.min(...abs), maxC = Math.max(...abs);
+        const masFuerte = filas.reduce((a, b) => Math.abs(b.coeficiente) > Math.abs(a.coeficiente) ? b : a);
+
+        let t = `En síntesis, de las ${filas.length} dimensiones analizadas en relación con ${etiquetaObjetivo}, `;
+        if (sig.length === filas.length) {
+            t += `TODAS presentaron una correlación estadísticamente significativa, `;
+        } else if (sig.length === 0) {
+            t += `NINGUNA alcanzó significancia estadística, `;
+        } else {
+            t += `${sig.length} presentaron una correlación estadísticamente significativa y ${filas.length - sig.length} no, `;
+        }
+        t += `con coeficientes cuya magnitud absoluta osciló entre ${minC.toFixed(3)} y ${maxC.toFixed(3)}. `;
+        t += `La asociación más fuerte correspondió a la dimensión ${masFuerte.etiquetaDimension} `;
+        t += `(${this._esSpearman(masFuerte.tipoCorrelacion) ? 'ρ' : 'r'} = ${masFuerte.coeficiente.toFixed(3)}, ${this._fmtP(masFuerte.pValor)}, magnitud ${masFuerte.fuerza}). `;
+        if (sig.length > 0 && sig.length < filas.length) {
+            t += `Este patrón diferencial es informativo en sí mismo: sugiere que la relación con ${etiquetaObjetivo} no es homogénea entre los componentes del constructo, lo que conviene retomar en la discusión. `;
+        }
+        t += `Cada resultado responde a su objetivo específico correspondiente y debe reportarse con su tabla y su interpretación individual.`;
+        return t;
     },
 
     generarHipotesis(var1, var2, unidadAnalisis, lugarContexto) {
@@ -298,9 +354,9 @@ const InterpretacionesEstadisticas = {
             contexto = ` en ${unidadAnalisis} de ${lugarContexto}`;
         }
         return {
-            hipotesisInvestigador: `Existe una relación estadísticamente significativa entre ${var1} y ${var2}${contexto}.`,
-            hipotesisNula: `No existe una relación estadísticamente significativa entre ${var1} y ${var2}${contexto}.`,
-            hipotesisAlterna: `Sí existe una relación estadísticamente significativa entre ${var1} y ${var2}${contexto}.`
+            hipotesisInvestigador: `Existe una relación estadísticamente significativa entre ${var1} ${this._conj(var2)} ${var2}${contexto}.`,
+            hipotesisNula: `No existe una relación estadísticamente significativa entre ${var1} ${this._conj(var2)} ${var2}${contexto}.`,
+            hipotesisAlterna: `Sí existe una relación estadísticamente significativa entre ${var1} ${this._conj(var2)} ${var2}${contexto}.`
         };
     },
 
@@ -309,7 +365,12 @@ const InterpretacionesEstadisticas = {
         return {
             preguntaInvestigacion: this.generarPreguntaInvestigacion(var1, var2, unidadAnalisis, lugarContexto),
             objetivoGeneral: this.generarObjetivoGeneral(var1, var2, unidadAnalisis, lugarContexto),
-            objetivosEspecificos: this.generarObjetivosEspecificos(var1, var2, opciones.dimensiones1 || null, opciones.dimensiones2 || null),
+            objetivosEspecificos: this.generarObjetivosEspecificos(
+                var1, var2,
+                opciones.dimensiones1 || null,
+                opciones.dimensiones2 || null,
+                { unidadAnalisis, lugarContexto, sociodemograficos: opciones.sociodemograficos || [] }
+            ),
             hipotesis: this.generarHipotesis(var1, var2, unidadAnalisis, lugarContexto),
             configuracion: opciones.configuracion || null
         };
@@ -321,7 +382,9 @@ const InterpretacionesEstadisticas = {
     // ========================================
 
     generarDiscusion(var1, var2, resultado, pruebaHip, unidadAnalisis, lugarContexto, opciones = {}) {
-        const marco = this.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto, opciones);
+        // Si el llamador ya construyó el marco (p. ej. con dimensiones reales y
+        // objetivos comparativos), se reutiliza para mantener UNA sola versión.
+        const marco = opciones.marco || this.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto, opciones);
         const esSpearman = this._esSpearman(resultado.tipoCorrelacion);
         const nombreMetodo = esSpearman ? 'Spearman (ρ)' : 'Pearson (r)';
         const simbolo = esSpearman ? 'ρ' : 'r';
