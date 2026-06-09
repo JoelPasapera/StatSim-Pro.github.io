@@ -125,7 +125,32 @@ const AnalisisDimensiones = {
         if (!container) return false;
 
         const criba = this.cribarObjetivos(var1, var2);
-        if (!criba) return false;
+
+        // DIAGNÓSTICO EN PANTALLA: si no se hallaron pares candidatos, explicar
+        // por qué (en vez de no mostrar nada y dejar solo el objetivo genérico).
+        if (!criba || !criba.evaluados || criba.evaluados.length === 0) {
+            const datos = AnalizadorEstadistico.obtenerDatos() || [];
+            const cols = datos.length ? Object.keys(datos[0]) : [];
+            const escalas = cols.filter(c => /^(dimension|general|total)_/i.test(c));
+            const otras = escalas.filter(c => c !== var1 && c !== var2);
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">🎯 Objetivos Específicos basados en los datos</h3></div>
+                    <div class="result-box">
+                        <p><strong>No se generaron objetivos específicos por dimensiones.</strong></p>
+                        <p class="help-text">Para crearlos, la base necesita columnas de escala
+                        (prefijo <code>Dimension_</code>, <code>General_</code> o <code>Total_</code>)
+                        <em>además</em> de las dos variables que estás correlacionando.</p>
+                        <p class="help-text">Columnas de escala detectadas: ${escalas.length ? escalas.map(c => `<code>${c}</code>`).join(', ') : '<em>ninguna</em>'}.
+                        Aparte de las dos seleccionadas (<code>${var1}</code>, <code>${var2}</code>) quedan
+                        <strong>${otras.length}</strong> para usar como dimensiones.
+                        ${otras.length === 0 ? 'Por eso no hay objetivos específicos: tu base solo trae las dos escalas generales, sin dimensiones. Genera una base con filas de tipo <strong>Dimensión</strong> en cada prueba (además de la General).' : ''}</p>
+                    </div>
+                </div>
+            `;
+            container.style.display = 'block';
+            return true;
+        }
 
         const I = InterpretacionesEstadisticas;
         const contexto = (unidadAnalisis && lugarContexto)
