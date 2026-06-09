@@ -664,7 +664,13 @@ function ejecutarCorrelacion(var1, var2, tipoPrueba) {
     const marco = generarMarcoParaAnalisis(var1, var2, et1, et2, unidadAnalisis, lugarContexto, criba);
     const resultado = AnalizadorEstadistico.calcularCorrelacion(var1, var2, tipoPrueba);
 
-    mostrarMarcoMetodologico(marco);
+    // Análisis de objetivos específicos como HTML, para incrustarlo DENTRO del
+    // bloque del marco (no como tarjeta separada al final).
+    const analisisDimensiones = (typeof AnalisisDimensiones !== 'undefined')
+        ? AnalisisDimensiones.generarContenido(var1, var2, tipoPrueba, unidadAnalisis, lugarContexto)
+        : '';
+
+    mostrarMarcoMetodologico(marco, analisisDimensiones);
     mostrarDescriptivas(et1, et2, resultado);
     mostrarFiabilidad(var1, var2); // Cronbach accede a las columnas de ítems: nombres técnicos
     mostrarPruebasNormalidad(et1, et2, resultado);
@@ -673,15 +679,6 @@ function ejecutarCorrelacion(var1, var2, tipoPrueba) {
     mostrarDispersion(et1, et2, resultado);
     mostrarDecision(et1, et2, resultado);
     mostrarReporteAPA(et1, et2, resultado);
-
-    // Objetivos específicos: correlaciones por dimensiones (estructura del
-    // simulador); si no hay estructura, se conserva el mecanismo legado.
-    const dimensionesRenderizadas = (typeof AnalisisDimensiones !== 'undefined')
-        && AnalisisDimensiones.mostrar(var1, var2, tipoPrueba, unidadAnalisis, lugarContexto);
-    if (!dimensionesRenderizadas) {
-        mostrarDimensionesSiAplica(var1, var2, tipoPrueba);
-    }
-
     mostrarDiscusion(et1, et2, resultado, unidadAnalisis, lugarContexto, marco);
     mostrarReferencias(et1, et2, resultado);
 
@@ -850,7 +847,7 @@ function mostrarChiCuadrado(var1, var2, resultado) {
     desplazarHacia(container);
 }
 
-function mostrarMarcoMetodologico(marco) {
+function mostrarMarcoMetodologico(marco, analisisDimensionesHTML) {
     const container = document.getElementById('marcoMetodologicoContainer');
     if (!container) {
         console.warn('No existe elemento #marcoMetodologicoContainer en el HTML');
@@ -876,6 +873,7 @@ function mostrarMarcoMetodologico(marco) {
                 <ol class="marco-list">
                     ${marco.objetivosEspecificos.map(obj => `<li>${obj}</li>`).join('')}
                 </ol>
+                ${analisisDimensionesHTML || ''}
             </div>
             
             <div class="result-box">
