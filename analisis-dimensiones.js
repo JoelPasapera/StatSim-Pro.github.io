@@ -127,10 +127,11 @@ const AnalisisDimensiones = {
                 <div class="card-header">
                     <h3 class="card-title">🎯 Objetivos Específicos basados en los datos</h3>
                 </div>
-                <p class="help-text">El programa evaluó TODAS las dimensiones frente a su variable de contraste
-                (normalidad por variable → Pearson o Spearman sobre rangos) y seleccionó como objetivos específicos
-                únicamente las correlaciones con |r| ≥ ${criba.umbral.toFixed(2)} (efecto mínimo reportable según
-                Cohen, 1988), ordenadas de mayor a menor magnitud absoluta, hasta un máximo de ${criba.maximo}.</p>
+                <p class="help-text">El programa evaluó TODOS los pares candidatos (normalidad por variable →
+                Pearson o Spearman sobre rangos) y seleccionó como objetivos específicos los de mayor correlación
+                en valor absoluto, de mayor a menor y hasta un máximo de ${criba.maximo}, garantizando primero los
+                pares dimensión ↔ escala general. El umbral |r| ≥ ${criba.umbral.toFixed(2)} (Cohen, 1988) se
+                muestra como referencia de relevancia del efecto.</p>
         `;
 
         // ---- Tabla de criba (transparencia del proceso de selección) ----
