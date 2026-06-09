@@ -22,6 +22,11 @@ const CribaCorrelaciones = {
     UMBRAL_ABS: 0.10,
     // Máximo de objetivos específicos correlacionales a seleccionar.
     MAX_OBJETIVOS: 5,
+    // ¿El umbral EXCLUYE de la selección?
+    //   false → se eligen los mejores |r| hasta MAX_OBJETIVOS aunque no lleguen
+    //           al umbral (este queda como referencia informativa en la tabla)
+    //   true  → solo entran pares con |r| ≥ UMBRAL_ABS
+    SELECCION_ESTRICTA: false,
 
     // datos: arreglo de filas {col: valor}; pares: [{columnaX, columnaY, ...meta}];
     // analizador: instancia con evaluarNormalidad(valores).
@@ -122,7 +127,7 @@ const CribaCorrelaciones = {
             const cupo = k; // la lista global no puede exceder k
             const delNivel = [];
             for (const e of evaluados) {
-                if (!e.valido || !e.superaUmbral || (e.prioridad || 1) !== nivel) continue;
+                if (!e.valido || (this.SELECCION_ESTRICTA && !e.superaUmbral) || (e.prioridad || 1) !== nivel) continue;
                 let pos = delNivel.length;
                 while (pos > 0 && Math.abs(delNivel[pos - 1].coeficiente) < Math.abs(e.coeficiente)) pos--;
                 if (pos < cupo - seleccionados.length) {
