@@ -845,6 +845,141 @@ class ScientificCharts {
      * @param {object} options - Opciones adicionales
      * @returns {ScientificCharts} - Instancia para chaining
      */
+    // ----------------------------------------------------------------
+    // DISPERSIÓN PROFESIONAL: puntos translúcidos, recta de mínimos
+    // cuadrados, BANDA DE CONFIANZA 95% de la recta y caja de anotaciones
+    // estadísticas (método, coeficiente, p, R², n). Nivel publicación.
+    // ----------------------------------------------------------------
+    createScatterPlotPro(xData, yData, options = {}) {
+        this._validateArrays(xData, yData);
+        const n = xData.length;
+        const W = this.config.width - this.config.margin.left - this.config.margin.right;
+        const H = this.config.height - this.config.margin.top - this.config.margin.bottom;
+
+        // Regresión por mínimos cuadrados
+        const xm = d3.mean(xData), ym = d3.mean(yData);
+        let Sxx = 0, Sxy = 0;
+        for (let i = 0; i < n; i++) { const dx = xData[i] - xm; Sxx += dx * dx; Sxy += dx * (yData[i] - ym); }
+        const b = Sxx === 0 ? 0 : Sxy / Sxx;
+        const a = ym - b * xm;
+        let SSE = 0;
+        for (let i = 0; i < n; i++) { const e = yData[i] - (a + b * xData[i]); SSE += e * e; }
+        const gl = Math.max(n - 2, 1);
+        const s = Math.sqrt(SSE / gl);
+        const t = 1.96 + 2.4 / gl; // aprox. t(0.975, gl), suficiente para visualización
+
+        // Escalas con 5% de respiro
+        const padX = (d3.max(xData) - d3.min(xData)) * 0.05 || 1;
+        const padY = (d3.max(yData) - d3.min(yData)) * 0.05 || 1;
+        const xScale = d3.scaleLinear().domain([d3.min(xData) - padX, d3.max(xData) + padX]).range([0, W]);
+        const yScale = d3.scaleLinear().domain([d3.min(yData) - padY, d3.max(yData) + padY]).range([H, 0]);
+
+        const g = this._createChartBase(options.title || 'Diagrama de dispersión',
+            options.xLabel || 'X', options.yLabel || 'Y');
+
+        // Rejilla sutil
+        g.append('g').attr('class', 'grid')
+            .selectAll('line.h').data(yScale.ticks(6)).enter().append('line')
+            .attr('x1', 0).attr('x2', W)
+            .attr('y1', d => yScale(d)).attr('y2', d => yScale(d))
+            .attr('stroke', '#94a3b8').attr('stroke-opacity', 0.18);
+        g.append('g').attr('class', 'grid')
+            .selectAll('line.v').data(xScale.ticks(6)).enter().append('line')
+            .attr('y1', 0).attr('y2', H)
+            .attr('x1', d => xScale(d)).attr('x2', d => xScale(d))
+            .attr('stroke', '#94a3b8').attr('stroke-opacity', 0.12);
+
+        // Banda de confianza 95% de la recta (media condicional)
+        const dominio = xScale.domain();
+        const malla = d3.range(60).map(i => dominio[0] + (i / 59) * (dominio[1] - dominio[0]));
+        const banda = malla.map(x => {
+            const half = t * s * Math.sqrt(1 / n + (Sxx === 0 ? 0 : ((x - xm) ** 2) / Sxx));
+            const yc = a + b * x;
+            return { x, lo: yc - half, hi: yc + half };
+        });
+        g.append('path').datum(banda)
+            .attr('fill', this.config.primaryColor).attr('fill-opacity', 0.13).attr('stroke', 'none')
+            .attr('d', d3.area().x(d => xScale(d.x)).y0(d => yScale(d.lo)).y1(d => yScale(d.hi)));
+
+        // Puntos
+        g.selectAll('.punto').data(xData).enter().append('circle')
+            .attr('cx', (d, i) => xScale(xData[i])).attr('cy', (d, i) => yScale(yData[i]))
+            .attr('r', 4).attr('fill', this.config.primaryColor).attr('fill-opacity', 0.55)
+            .attr('stroke', '#ffffff').attr('stroke-width', 0.8);
+
+        // Recta de regresión sobre la banda
+        g.append('line')
+            .attr('x1', xScale(dominio[0])).attr('y1', yScale(a + b * dominio[0]))
+            .attr('x2', xScale(dominio[1])).attr('y2', yScale(a + b * dominio[1]))
+            .attr('stroke', '#b91c1c').attr('stroke-width', 2.2);
+
+        // Caja de anotaciones (lado opuesto a la pendiente para no tapar puntos)
+        const lineas = options.annotationLines || [];
+        if (lineas.length) {
+            const anchoCaja = 12 + 7.2 * d3.max(lineas, l => l.length);
+            const altoCaja = 14 + lineas.length * 17;
+            const cx = b >= 0 ? 10 : W - anchoCaja - 10;
+            const caja = g.append('g').attr('transform', `translate(${cx},8)`);
+            caja.append('rect').attr('width', anchoCaja).attr('height', altoCaja)
+                .attr('rx', 6).attr('fill', '#ffffff').attr('fill-opacity', 0.92)
+                .attr('stroke', '#cbd5e1');
+            lineas.forEach((l, i) => {
+                caja.append('text').attr('x', 8).attr('y', 20 + i * 17)
+                    .attr('font-size', 12).attr('fill', '#1e293b').text(l);
+            });
+        }
+        return this;
+    }
+
+    // ----------------------------------------------------------------
+    // HISTOGRAMA CON CURVA NORMAL TEÓRICA N(μ, σ) superpuesta, escalada a
+    // frecuencias esperadas. Acompaña al Q-Q en el panel de normalidad.
+    // ----------------------------------------------------------------
+    createHistogramNormal(data, options = {}) {
+        if (!Array.isArray(data) || data.length < 3) {
+            throw new Error('Se necesitan al menos 3 datos');
+        }
+        const n = data.length;
+        const media = d3.mean(data), de = d3.deviation(data) || 1;
+        const binCount = Math.ceil(Math.log2(n)) + 1;
+        const histo = d3.histogram().domain(d3.extent(data)).thresholds(binCount);
+        const bins = histo(data);
+        const anchoBin = bins.length ? (bins[0].x1 - bins[0].x0) : 1;
+
+        const W = this.config.width - this.config.margin.left - this.config.margin.right;
+        const H = this.config.height - this.config.margin.top - this.config.margin.bottom;
+        const xScale = d3.scaleLinear().domain(d3.extent(data)).range([0, W]).nice();
+        const pdf = x => Math.exp(-((x - media) ** 2) / (2 * de * de)) / (de * Math.sqrt(2 * Math.PI));
+        const maxY = Math.max(d3.max(bins, d => d.length), n * anchoBin * pdf(media)) * 1.08;
+        const yScale = d3.scaleLinear().domain([0, maxY]).range([H, 0]);
+
+        const g = this._createChartBase(options.title || 'Histograma con curva normal',
+            options.xLabel || 'Valor', options.yLabel || 'Frecuencia');
+
+        g.selectAll('.barra').data(bins).enter().append('rect')
+            .attr('x', d => xScale(d.x0) + 0.5)
+            .attr('width', d => Math.max(xScale(d.x1) - xScale(d.x0) - 1, 1))
+            .attr('y', d => yScale(d.length))
+            .attr('height', d => H - yScale(d.length))
+            .attr('fill', this.config.primaryColor).attr('fill-opacity', 0.55)
+            .attr('stroke', '#ffffff');
+
+        // Curva normal teórica escalada a frecuencias: f(x) = n·Δbin·pdf(x)
+        const dom = xScale.domain();
+        const curva = d3.range(80).map(i => {
+            const x = dom[0] + (i / 79) * (dom[1] - dom[0]);
+            return { x, y: n * anchoBin * pdf(x) };
+        });
+        g.append('path').datum(curva)
+            .attr('fill', 'none').attr('stroke', '#b91c1c').attr('stroke-width', 2.2)
+            .attr('d', d3.line().x(d => xScale(d.x)).y(d => yScale(d.y)).curve(d3.curveBasis));
+
+        g.append('text').attr('x', W - 6).attr('y', 14).attr('text-anchor', 'end')
+            .attr('font-size', 11).attr('fill', '#b91c1c')
+            .text(`— Normal teórica N(${media.toFixed(1)}, ${de.toFixed(1)})`);
+        return this;
+    }
+
     createQQPlot(data, options = {}) {
         if (!Array.isArray(data) || data.length < 3) {
             throw new Error('Se necesitan al menos 3 datos para el gráfico Q-Q');
