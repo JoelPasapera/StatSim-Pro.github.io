@@ -53,20 +53,30 @@ const AnalisisDimensiones = {
             });
         }
         // FALLBACK PARA BASES EXTERNAS (sin estructura del simulador): se
-        // reconstruyen los candidatos desde los PREFIJOS de columna
-        // (Dimension_/General_). La pertenencia dimensión→prueba no es
-        // deducible del nombre, así que cada dimensión se contrasta con ambas
-        // variables seleccionadas (prioridad 1) y entre dimensiones
-        // (prioridad 2); la criba decide con los datos.
+        // reconstruyen los candidatos desde las columnas de escala. Se prefieren
+        // los prefijos nuevos (Dimension_); si la base es antigua, se usan las
+        // columnas Total_. En ambos casos se trata como "dimensiones" a las
+        // escalas que NO son las dos variables seleccionadas, y cada una se
+        // contrasta con ambas (prioridad 1) y entre sí (prioridad 2); la criba
+        // decide con los datos. La pertenencia dimensión→prueba no es deducible
+        // del nombre, así que se omite en la redacción.
         if (candidatos.length === 0) {
             const datos = (typeof AnalizadorEstadistico !== 'undefined' && AnalizadorEstadistico.obtenerDatos)
                 ? (AnalizadorEstadistico.obtenerDatos() || []) : [];
             if (datos.length === 0) return candidatos;
             const cols = Object.keys(datos[0]);
-            const dims = cols.filter(c => /^dimension_/i.test(c));
-            if (dims.length === 0) return candidatos;
+
+            // Columnas de escala: nuevos prefijos o, si no hay, Total_ (base antigua)
+            let escalas = cols.filter(c => /^dimension_/i.test(c) || /^general_/i.test(c));
+            if (escalas.length === 0) escalas = cols.filter(c => /^total_/i.test(c));
+            if (escalas.length === 0) return candidatos;
+
             const et = c => E ? E.etiqueta(c) : c;
-            const objetivosCols = [var1, var2].filter(v => v && !/^dimension_/i.test(v));
+            const objetivosCols = [var1, var2].filter(Boolean);
+            // "dimensiones" = escalas distintas de las dos variables seleccionadas
+            const dims = escalas.filter(c => !objetivosCols.includes(c));
+            if (dims.length === 0) return candidatos;
+
             dims.forEach(d => {
                 objetivosCols.forEach(o => {
                     if (d === o) return;
