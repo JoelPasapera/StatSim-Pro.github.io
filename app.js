@@ -697,8 +697,16 @@ function fmtPApp(p) {
 }
 
 function generarMarcoParaAnalisis(var1, var2, et1, et2, unidadAnalisis, lugarContexto, criba) {
+    // Instrumentos: si la estructura del simulador conoce la prueba a la que
+    // pertenece cada variable, la redacción del tipo y diseño los nombra.
+    const _E = (typeof EtiquetasVariables !== 'undefined') ? EtiquetasVariables : null;
+    const _pr1 = _E ? _E.pruebaConGeneral(var1) : null;
+    const _pr2 = _E ? _E.pruebaConGeneral(var2) : null;
     const opcionesComunes = {
         sociodemograficos: obtenerColumnasCategoricas(4),
+        instrumento1: _pr1 ? _pr1.prueba : null,
+        instrumento2: _pr2 ? _pr2.prueba : null,
+        n: (AnalizadorEstadistico.obtenerDatos() || []).length || null,
         configuracion: AnalizadorEstadistico.obtenerMarcoInvestigacion
             ? AnalizadorEstadistico.obtenerMarcoInvestigacion()
             : null
@@ -891,6 +899,12 @@ function mostrarMarcoMetodologico(marco, analisisDimensionesHTML) {
                 <h4 class="result-subtitle">❌ Hipótesis Nula (H₀)</h4>
                 <p class="marco-text">${marco.hipotesis.hipotesisNula}</p>
             </div>
+
+            ${marco.tipoYDiseno ? `
+            <div class="result-box">
+                <h4 class="result-subtitle">🧭 Tipo y diseño de estudio</h4>
+                ${marco.tipoYDiseno.split('\n\n').map(p => `<p class="marco-text" style="text-align: justify;">${p}</p>`).join('')}
+            </div>` : ''}
         </div>
     `;
 
@@ -1742,6 +1756,14 @@ function mostrarReferencias(var1, var2, resultado) {
 
             <div class="reference-card">
                 <p class="reference-text">4. Cohen, J. (2013). Statistical power analysis for the behavioral sciences. routledge. <a href="https://www.taylorfrancis.com/books/mono/10.4324/9780203771587/statistical-power-analysis-behavioral-sciences-jacob-cohen" target="_blank">https://www.taylorfrancis.com/books/mono/10.4324/9780203771587/statistical-power-analysis-behavioral-sciences-jacob-cohen</a></p>
+            </div>
+
+            <div class="reference-card">
+                <p class="reference-text">5. Arias, J. L. (2021). Diseño y metodología de la investigación. Enfoques Consulting EIRL. <a href="https://repositorio.concytec.gob.pe/handle/20.500.12390/2260" target="_blank">https://repositorio.concytec.gob.pe/handle/20.500.12390/2260</a></p>
+            </div>
+
+            <div class="reference-card">
+                <p class="reference-text">6. Cvetković-Vega, A., Maguiña, J. L., Soto, A., Lama-Valdivia, J., & Correa, L. E. (2021). Estudios transversales. Revista de la Facultad de Medicina Humana, 21(1), 164-170. <a href="https://doi.org/10.25176/RFMH.v21i1.3069" target="_blank">https://doi.org/10.25176/RFMH.v21i1.3069</a></p>
             </div>
         </div>
     `;
