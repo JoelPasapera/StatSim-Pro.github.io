@@ -470,7 +470,7 @@ const InterpretacionesEstadisticas = {
         d += `---\n\n**METODOLOGÍA ESTADÍSTICA**\n\n`;
         d += `El análisis correlacional se realizó mediante el coeficiente de ${nombreMetodo}, seleccionado a partir de las pruebas de normalidad. `;
         if (n1.normal && n2.normal) {
-            d += `Ambas variables cumplieron el supuesto de normalidad (${var1}: ${simNorm(n1)} = ${this._fmtNum(n1.estadistico)}, ${this._fmtP(n1.pValor)}; ${var2}: ${simNorm(n2)} = ${this._fmtNum(n2.estadistico)}, ${this._fmtP(n2.pValor)}; criterio p > 0.05), lo que habilita la estadística paramétrica y el análisis de la relación LINEAL entre las variables.\n\n`;
+            d += `Ambas variables cumplieron el supuesto de normalidad (${var1}: ${simNorm(n1)} = ${this._fmtNum(n1.estadistico)}, ${this._fmtP(n1.pValor)}; ${var2}: ${simNorm(n2)} = ${this._fmtNum(n2.estadistico)}, ${this._fmtP(n2.pValor)}; criterio p > 0.05), lo que habilita la estadística paramétrica y el análisis de la relación LINEAL entre las variables. Cabe señalar que el coeficiente de Pearson asume, además, linealidad de la relación y es sensible a valores atípicos; el diagrama de dispersión —con su recta de regresión y banda de confianza al 95%— permite verificar visualmente ambos supuestos.\n\n`;
         } else {
             d += `Al menos una variable se desvió significativamente de la normalidad (${var1}: ${this._fmtP(n1.pValor)}; ${var2}: ${this._fmtP(n2.pValor)}; criterio p > 0.05), por lo que se optó por el método no paramétrico basado en rangos, que evalúa la relación MONOTÓNICA entre las variables.\n\n`;
         }
@@ -536,11 +536,16 @@ const InterpretacionesEstadisticas = {
         const prueba = resultado.prueba;
         const ef = resultado.tamanoEfecto;
         const pTexto = this._fmtP(prueba.pValor);
+        // Tamaño del efecto: r de rangos si la prueba fue no paramétrica
+        // (apropiado para Mann-Whitney); d de Cohen en el caso paramétrico.
+        const efTexto = resultado.tamanoEfectoRangos
+            ? `r de rangos = ${resultado.tamanoEfectoRangos.r.toFixed(2)}, tamaño ${resultado.tamanoEfectoRangos.interpretacion}`
+            : `d de Cohen = ${ef.d.toFixed(2)}, tamaño ${ef.interpretacion}`;
 
         if (significativa) {
-            return `Existe una diferencia estadísticamente significativa en ${varCuantitativa} entre los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}). El grupo "${grupoMayor}" presenta la media más alta. La magnitud de la diferencia es de tamaño ${ef.interpretacion} (d de Cohen = ${ef.d.toFixed(2)}). Una diferencia significativa no implica causalidad cuando los grupos no se asignaron al azar.`;
+            return `Existe una diferencia estadísticamente significativa en ${varCuantitativa} entre los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}). El grupo "${grupoMayor}" presenta la media más alta. La magnitud de la diferencia corresponde a ${efTexto}. Una diferencia significativa no implica causalidad cuando los grupos no se asignaron al azar.`;
         }
-        return `No se hallaron diferencias estadísticamente significativas en ${varCuantitativa} entre los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}); el tamaño del efecto es ${ef.interpretacion} (d de Cohen = ${ef.d.toFixed(2)}). Un resultado no significativo no demuestra la igualdad de los grupos: podría deberse a un tamaño muestral insuficiente para detectar la diferencia.`;
+        return `No se hallaron diferencias estadísticamente significativas en ${varCuantitativa} entre los grupos de ${varAgrupacion} (${prueba.prueba}, ${pTexto}); el tamaño del efecto corresponde a ${efTexto}. Un resultado no significativo no demuestra la igualdad de los grupos: podría deberse a un tamaño muestral insuficiente para detectar la diferencia.`;
     }
 };
 
