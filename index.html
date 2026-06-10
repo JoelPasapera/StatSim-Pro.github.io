@@ -781,6 +781,11 @@
                 <!-- Resultados de chi-cuadrado de independencia -->
                 <div id="resultadosChiCuadrado" style="display: none;"></div>
 
+                <!-- Exportar capítulo a Word (APA 7) -->
+                <button id="btnExportarWord" class="btn btn-primary">
+                    📄 Exportar capítulo a Word (APA 7)
+                </button>
+
                 <!-- Botón Descargar Resultados -->
                 <button id="btnDescargarResultados" class="btn btn-outline">
                     <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -933,6 +938,9 @@
 
     <!-- Correlaciones por dimensiones (objetivos específicos) -->
     <script src="analisis-dimensiones.js"></script>
+
+    <!-- Exportador del capítulo de resultados a Word (APA 7) -->
+    <script src="exportador-word.js"></script>
 
     <!-- Librería de gráficos científicos (depende de d3) -->
     <script src="graficas.js"></script>
