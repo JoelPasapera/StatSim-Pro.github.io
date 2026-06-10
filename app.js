@@ -690,38 +690,43 @@ function ejecutarCorrelacion(var1, var2, tipoPrueba) {
 // con estructura del simulador usa las dimensiones reales (etiquetas) y las
 // variables sociodemográficas categóricas para los objetivos comparativos;
 // sin estructura, delega en el mecanismo legado del analizador.
+// Formato APA de p-valores para tablas: nunca "0.0000".
+function fmtPApp(p) {
+    if (!Number.isFinite(p)) return '—';
+    return p < 0.001 ? '< .001' : p.toFixed(3).replace(/^0\./, '.');
+}
+
 function generarMarcoParaAnalisis(var1, var2, et1, et2, unidadAnalisis, lugarContexto, criba) {
-    const hayEstructura = (typeof EtiquetasVariables !== 'undefined') && EtiquetasVariables.tieneEtiquetas();
-    if (!hayEstructura) {
-        return AnalizadorEstadistico.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
-    }
-
-    // Objetivos específicos: SI HAY CRIBA, las frases salen directamente de la
-    // selección basada en datos (mismo orden y redacción que la sección 🎯);
-    // sin criba, todas las dimensiones de la estructura (comportamiento clásico).
-    let dims1 = null, dims2 = null, objetivosPersonalizados = null;
-    if (criba && criba.seleccionados && criba.seleccionados.length > 0) {
-        objetivosPersonalizados = InterpretacionesEstadisticas.generarObjetivosDesdeSeleccion(
-            criba.seleccionados, { unidadAnalisis, lugarContexto }
-        );
-    } else if (!criba) {
-        const dimsDe = col => {
-            const p = EtiquetasVariables.pruebaConGeneral(col);
-            return p ? p.dimensiones.map(d => d.etiqueta) : null;
-        };
-        dims1 = dimsDe(var1);
-        dims2 = dimsDe(var2);
-    }
-
-    return InterpretacionesEstadisticas.generarMarcoMetodologico(et1, et2, unidadAnalisis, lugarContexto, {
-        dimensiones1: dims1,
-        dimensiones2: dims2,
-        objetivosPersonalizados: objetivosPersonalizados,
+    const opcionesComunes = {
         sociodemograficos: obtenerColumnasCategoricas(4),
         configuracion: AnalizadorEstadistico.obtenerMarcoInvestigacion
             ? AnalizadorEstadistico.obtenerMarcoInvestigacion()
             : null
-    });
+    };
+
+    // 1) LA CRIBA MANDA: si seleccionó pares, los objetivos específicos del
+    //    marco salen de esa selección — CON o SIN etiquetas (es decir, también
+    //    para bases externas con columnas Total_/Dimension_/General_).
+    if (criba && criba.seleccionados && criba.seleccionados.length > 0) {
+        return InterpretacionesEstadisticas.generarMarcoMetodologico(et1, et2, unidadAnalisis, lugarContexto,
+            Object.assign({
+                objetivosPersonalizados: InterpretacionesEstadisticas.generarObjetivosDesdeSeleccion(
+                    criba.seleccionados, { unidadAnalisis, lugarContexto })
+            }, opcionesComunes));
+    }
+
+    // 2) Sin criba pero con estructura del simulador: todas las dimensiones.
+    if ((typeof EtiquetasVariables !== 'undefined') && EtiquetasVariables.tieneEtiquetas()) {
+        const dimsDe = col => {
+            const p = EtiquetasVariables.pruebaConGeneral(col);
+            return p ? p.dimensiones.map(d => d.etiqueta) : null;
+        };
+        return InterpretacionesEstadisticas.generarMarcoMetodologico(et1, et2, unidadAnalisis, lugarContexto,
+            Object.assign({ dimensiones1: dimsDe(var1), dimensiones2: dimsDe(var2) }, opcionesComunes));
+    }
+
+    // 3) Mecanismo legado del analizador.
+    return AnalizadorEstadistico.generarMarcoMetodologico(var1, var2, unidadAnalisis, lugarContexto);
 }
 
 // Columnas categóricas del dataset cargado (texto, sin contar ID), para los
@@ -829,7 +834,7 @@ function mostrarChiCuadrado(var1, var2, resultado) {
             <div class="result-box">
                 <table class="result-table">
                     <tr><td>Chi-cuadrado de Pearson:</td><td><strong>χ²(${resultado.gl}) = ${resultado.chiCuadrado.toFixed(3)}</strong></td></tr>
-                    <tr><td>p-valor:</td><td><strong>${resultado.pValor.toFixed(4)}</strong></td></tr>
+                    <tr><td>p-valor:</td><td><strong>${fmtPApp(resultado.pValor)}</strong></td></tr>
                     <tr><td>V de Cramér (tamaño del efecto):</td><td><strong>${resultado.cramerV.toFixed(3)}</strong> (${interpretarCramerV(resultado.cramerV)})</td></tr>
                     <tr><td>N:</td><td>${resultado.n}</td></tr>
                     <tr><td>Decisión sobre H₀:</td><td class="${significativa ? 'decision-reject' : 'decision-accept'}"><strong>${significativa ? 'SE RECHAZA H₀' : 'NO SE RECHAZA H₀'}</strong></td></tr>
@@ -918,7 +923,7 @@ function mostrarPruebasNormalidad(var1, var2, resultado) {
                     </tr>
                     <tr>
                         <td>p-valor:</td>
-                        <td>${resultado.normalidad1.pValor.toFixed(4)}</td>
+                        <td>${fmtPApp(resultado.normalidad1.pValor)}</td>
                     </tr>
                     <tr>
                         <td>Decisión:</td>
@@ -940,7 +945,7 @@ function mostrarPruebasNormalidad(var1, var2, resultado) {
                     </tr>
                     <tr>
                         <td>p-valor:</td>
-                        <td>${resultado.normalidad2.pValor.toFixed(4)}</td>
+                        <td>${fmtPApp(resultado.normalidad2.pValor)}</td>
                     </tr>
                     <tr>
                         <td>Decisión:</td>
@@ -1046,7 +1051,7 @@ function mostrarCorrelacion(var1, var2, resultado) {
                     </tr>
                     <tr>
                         <td>p-valor (${resultado.tipoPrueba}):</td>
-                        <td><strong>${resultado.pValor.toFixed(4)}</strong></td>
+                        <td><strong>${fmtPApp(resultado.pValor)}</strong></td>
                     </tr>
                     <tr>
                         <td>IC 95% del coeficiente:</td>
@@ -1102,11 +1107,11 @@ function mostrarDecision(var1, var2, resultado) {
                     </tr>
                     <tr>
                         <td>p-valor:</td>
-                        <td><strong>${resultado.pValor.toFixed(4)}</strong></td>
+                        <td><strong>${fmtPApp(resultado.pValor)}</strong></td>
                     </tr>
                     <tr>
                         <td>Comparación:</td>
-                        <td>${resultado.pValor.toFixed(4)} ${prueba.decision === 'rechazar' ? '<' : '≥'} ${prueba.alpha}</td>
+                        <td>${fmtPApp(resultado.pValor)} ${prueba.decision === 'rechazar' ? '<' : '≥'} α = ${prueba.alpha}</td>
                     </tr>
                     <tr>
                         <td>Decisión sobre H₀:</td>
@@ -1279,10 +1284,10 @@ function mostrarComparacion(varCuantitativa, varAgrupacion, resultado) {
 
             <div class="result-box">
                 <table class="result-table">
-                    <tr><td>Levene (igualdad de varianzas):</td><td>F(${resultado.levene.df1}, ${resultado.levene.df2}) = ${resultado.levene.estadistico.toFixed(3)}, p = ${resultado.levene.pValor.toFixed(4)} (${resultado.levene.varianzasIguales ? 'varianzas iguales' : 'varianzas desiguales'})</td></tr>
+                    <tr><td>Levene (igualdad de varianzas):</td><td>F(${resultado.levene.df1}, ${resultado.levene.df2}) = ${resultado.levene.estadistico.toFixed(3)}, ${fmtPApp(resultado.levene.pValor) === '< .001' ? 'p < .001' : 'p = ' + fmtPApp(resultado.levene.pValor)} (${resultado.levene.varianzasIguales ? 'varianzas iguales' : 'varianzas desiguales'})</td></tr>
                     <tr><td>Prueba aplicada:</td><td><strong>${prueba.prueba}</strong></td></tr>
                     <tr><td>Estadístico:</td><td>${estadisticoTexto}</td></tr>
-                    <tr><td>p-valor (bilateral):</td><td><strong>${prueba.pValor.toFixed(4)}</strong></td></tr>
+                    <tr><td>p-valor (bilateral):</td><td><strong>${fmtPApp(prueba.pValor)}</strong></td></tr>
                     <tr><td>Tamaño del efecto (d de Cohen):</td><td><strong>${ef.d.toFixed(3)}</strong> (${ef.interpretacion})</td></tr>
                     ${resultado.tamanoEfectoRangos ? `<tr><td>Tamaño del efecto (r de rangos):</td><td><strong>${resultado.tamanoEfectoRangos.r.toFixed(3)}</strong> (${resultado.tamanoEfectoRangos.interpretacion}) — apropiado para la prueba no paramétrica</td></tr>` : ''}
                     <tr><td>Decisión sobre H₀:</td><td class="${significativa ? 'decision-reject' : 'decision-accept'}"><strong>${significativa ? 'SE RECHAZA H₀' : 'NO SE RECHAZA H₀'}</strong></td></tr>
@@ -1385,10 +1390,10 @@ function mostrarComparacionVarios(varCuantitativa, varAgrupacion, resultado) {
 
             <div class="result-box">
                 <table class="result-table">
-                    <tr><td>Levene (igualdad de varianzas):</td><td>F(${resultado.levene.df1}, ${resultado.levene.df2}) = ${resultado.levene.estadistico.toFixed(3)}, p = ${resultado.levene.pValor.toFixed(4)}</td></tr>
+                    <tr><td>Levene (igualdad de varianzas):</td><td>F(${resultado.levene.df1}, ${resultado.levene.df2}) = ${resultado.levene.estadistico.toFixed(3)}, ${fmtPApp(resultado.levene.pValor) === '< .001' ? 'p < .001' : 'p = ' + fmtPApp(resultado.levene.pValor)}</td></tr>
                     <tr><td>Prueba aplicada:</td><td><strong>${prueba.prueba}</strong></td></tr>
                     <tr><td>Estadístico:</td><td>${lineaPrueba}</td></tr>
-                    <tr><td>p-valor:</td><td><strong>${prueba.pValor.toFixed(4)}</strong></td></tr>
+                    <tr><td>p-valor:</td><td><strong>${fmtPApp(prueba.pValor)}</strong></td></tr>
                     <tr><td>Tamaño del efecto:</td><td><strong>${efecto}</strong></td></tr>
                     <tr><td>Decisión sobre H₀:</td><td class="${significativa ? 'decision-reject' : 'decision-accept'}"><strong>${significativa ? 'SE RECHAZA H₀' : 'NO SE RECHAZA H₀'}</strong></td></tr>
                 </table>
@@ -1686,7 +1691,7 @@ function mostrarTablaDimensiones(container, var1, var2, resultados) {
                         <td>${r.dimension2}</td>
                         <td><strong>${r.tipoCorrelacion}</strong></td>
                         <td>${r.coeficiente.toFixed(4)}</td>
-                        <td>${r.pValor.toFixed(4)}</td>
+                        <td>${fmtPApp(r.pValor)}</td>
                         <td>${r.pValor < 0.05 ? 'Significativa (p < .05)' : 'No significativa (p ≥ .05)'}</td>
                     </tr>`).join('');
 
