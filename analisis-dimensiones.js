@@ -143,7 +143,10 @@ const AnalisisDimensiones = {
         let html = `<p class="help-text" style="margin-top:0.5rem;">Seleccionados EN FUNCIÓN DE LOS DATOS:
             se evaluaron todos los pares (normalidad por variable → Pearson o Spearman), priorizando los pares
             dimensión ↔ escala general y ordenando por |r| de mayor a menor, hasta un máximo de ${criba.maximo}.
-            El umbral |r| ≥ ${criba.umbral.toFixed(2)} (Cohen, 1988) se muestra como referencia del efecto.</p>`;
+            El umbral |r| ≥ ${criba.umbral.toFixed(2)} (Cohen, 1988) se muestra como referencia del efecto.
+            Como se evalúan varias correlaciones a la vez, los p-valores de los objetivos incluyen la
+            <strong>corrección de Holm</strong> para comparaciones múltiples (controla la inflación de
+            falsos positivos); la decisión de significancia de cada objetivo usa el p ajustado.</p>`;
 
         // Tabla de criba (transparencia del proceso de selección)
         html += `<div class="result-box" style="margin-top: 0.75rem;">
@@ -166,14 +169,23 @@ const AnalisisDimensiones = {
                 <p style="margin: 0.5rem 0 0;">${I.generarResumenCriba(criba)}</p>
             </div>`;
 
-        // Análisis completo SOLO de los seleccionados (encabezado compacto:
-        // las frases completas ya están en la lista de Objetivos Específicos).
-        criba.seleccionados.forEach((sel, i) => {
-            let resultado = null, error = null;
+        // Análisis completo SOLO de los seleccionados. DOS PASADAS:
+        // (1) calcular todos los resultados, (2) ajustar p por Holm sobre la
+        // FAMILIA de objetivos reportados, (3) renderizar con ambos p y
+        // decidir por el p ajustado (controla la inflación de falsos positivos).
+        const resultadosSel = criba.seleccionados.map(sel => {
             try {
-                resultado = AnalizadorEstadistico.calcularCorrelacion(sel.columnaX, sel.columnaY, tipoPrueba);
-            } catch (e) { error = e.message; }
+                return { sel, resultado: AnalizadorEstadistico.calcularCorrelacion(sel.columnaX, sel.columnaY, tipoPrueba), error: null };
+            } catch (e) {
+                return { sel, resultado: null, error: e.message };
+            }
+        });
+        const pHolm = AnalizadorEstadistico.ajustarPValoresHolm(
+            resultadosSel.map(r => r.resultado ? r.resultado.pValor : NaN)
+        );
 
+        resultadosSel.forEach((item, i) => {
+            const { sel, resultado, error } = item;
             html += `<div class="result-box" style="margin-top: 1rem;">
                 <h4>Objetivo específico ${i + 1}: ${sel.etiquetaX} ↔ ${sel.etiquetaY}</h4>`;
             if (error || !resultado) {
@@ -183,19 +195,22 @@ const AnalisisDimensiones = {
             const esSp = I._esSpearman(resultado.tipoCorrelacion);
             const ic = resultado.intervaloConfianza;
             const icTxt = (ic && Number.isFinite(ic.inferior)) ? `[${ic.inferior.toFixed(3)}, ${ic.superior.toFixed(3)}]` : '—';
-            const sig = resultado.pValor < 0.05;
+            const sigCruda = resultado.pValor < 0.05;
+            const sigHolm = pHolm[i] < 0.05;
             html += `<div class="table-container"><table class="table">
-                    <thead><tr><th>n</th><th>Método</th><th>Coeficiente</th><th>p-valor</th><th>IC 95%</th><th>Magnitud</th><th>Decisión</th></tr></thead>
+                    <thead><tr><th>n</th><th>Método</th><th>Coeficiente</th><th>p-valor</th><th>p ajustado (Holm)</th><th>IC 95%</th><th>Magnitud</th><th>Decisión (Holm)</th></tr></thead>
                     <tbody><tr>
                         <td>${resultado.n}</td>
                         <td>${esSp ? 'Spearman (ρ)' : 'Pearson (r)'}</td>
                         <td><strong>${resultado.coeficiente.toFixed(3)}</strong></td>
                         <td>${I._fmtP(resultado.pValor)}</td>
+                        <td><strong>${I._fmtP(pHolm[i])}</strong></td>
                         <td>${icTxt}</td>
                         <td>${resultado.interpretacion.fuerza} (${resultado.interpretacion.direccion})</td>
-                        <td>${sig ? '✅ Significativa' : '➖ No significativa'}</td>
+                        <td>${sigHolm ? '✅ Significativa' : '➖ No significativa'}</td>
                     </tr></tbody>
                 </table></div>
+                ${sigCruda && !sigHolm ? `<p class="help-text" style="margin: 0.4rem 0 0;">⚠️ Este par resulta significativo con el p sin ajustar, pero NO tras la corrección de Holm: en el contexto de ${resultadosSel.length} objetivos evaluados podría tratarse de un falso positivo, por lo que debe interpretarse con cautela.</p>` : ''}
                 <details style="margin: 0.5rem 0 0;">
                     <summary style="cursor: pointer; font-weight: 600;">Interpretación profesional</summary>
                     <p style="margin: 0.5rem 0 0;">${I.generarInterpretacionCorrelacion(`la dimensión ${sel.etiquetaX}`, sel.etiquetaY, resultado)}</p>
