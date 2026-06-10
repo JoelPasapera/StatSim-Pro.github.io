@@ -1620,8 +1620,8 @@ class AnalizadorEstadisticoProfesional {
             pValor: resultadoCorrelacion.pValor,
             decision: decisión,
             conclusionH0: decisión === 'rechazar'
-                ? `Se rechaza la hipótesis nula (p = ${resultadoCorrelacion.pValor.toFixed(4)} < α = ${alpha})`
-                : `No se rechaza la hipótesis nula (p = ${resultadoCorrelacion.pValor.toFixed(4)} ≥ α = ${alpha})`,
+                ? `Se rechaza la hipótesis nula (${resultadoCorrelacion.pValor < 0.001 ? 'p < .001' : 'p = ' + resultadoCorrelacion.pValor.toFixed(3)} < α = ${alpha})`
+                : `No se rechaza la hipótesis nula (${resultadoCorrelacion.pValor < 0.001 ? 'p < .001' : 'p = ' + resultadoCorrelacion.pValor.toFixed(3)} ≥ α = ${alpha})`,
             conclusionH1: decisión === 'rechazar'
                 ? `Existe una relación estadísticamente significativa ${resultadoCorrelacion.interpretacion.direccion}`
                 : 'No existe evidencia suficiente de una relación estadísticamente significativa'
