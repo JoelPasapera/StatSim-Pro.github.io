@@ -857,11 +857,39 @@ class AnalizadorEstadisticoProfesional {
             prueba: prueba,
             parametrica: parametrica,
             tamanoEfecto: this.calcularCohenD(grupo1, grupo2),
+            // Tamaño del efecto apropiado para la prueba no paramétrica:
+            // r de rangos = |Z| / raíz(N) (Cohen: .10 pequeño, .30 mediano, .50 grande)
+            tamanoEfectoRangos: (!parametrica && Number.isFinite(prueba.z)) ? (() => {
+                const r = Math.abs(prueba.z) / Math.sqrt(grupo1.length + grupo2.length);
+                return { r: r, interpretacion: r < 0.1 ? 'trivial' : r < 0.3 ? 'pequeño' : r < 0.5 ? 'mediano' : 'grande' };
+            })() : null,
             alpha: alpha,
             decision: prueba.pValor < alpha ? 'rechazar' : 'no_rechazar',
             etiquetas: [etiqueta1, etiqueta2],
             gruposDatos: [grupo1, grupo2]
         };
+    }
+
+    /**
+     * Corrección de Holm (step-down de Bonferroni) para comparaciones
+     * múltiples. Controla la tasa de error familiar (FWER) sin supuestos de
+     * independencia. Devuelve los p ajustados en el MISMO orden de entrada.
+     * Procedimiento: ordenar p ascendente; p_adj(k) = max acumulado de
+     * min((m−k+1)·p(k), 1), garantizando monotonía.
+     */
+    ajustarPValoresHolm(pvalores) {
+        const m = pvalores.length;
+        const orden = pvalores
+            .map((p, i) => ({ p: Number.isFinite(p) ? p : 1, i }))
+            .sort((a, b) => a.p - b.p);
+        const ajustados = new Array(m).fill(1);
+        let acumulado = 0;
+        orden.forEach((o, k) => {
+            const valor = Math.min((m - k) * o.p, 1);
+            acumulado = Math.max(acumulado, valor);
+            ajustados[o.i] = acumulado;
+        });
+        return ajustados;
     }
 
     // ========================================
