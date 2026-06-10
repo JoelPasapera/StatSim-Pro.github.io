@@ -91,7 +91,7 @@ const EtiquetasVariables = {
 
         cont.innerHTML = `
             <div class="card">
-                <details>
+                <details open>
                     <summary style="cursor: pointer; font-weight: 700; padding: 0.25rem 0;">
                         ✏️ Renombrar variables (etiquetas) — opcional
                     </summary>
