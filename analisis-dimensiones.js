@@ -104,7 +104,8 @@ const AnalisisDimensiones = {
     // el render usen EL MISMO resultado sin recalcular).
     cribarObjetivos(var1, var2) {
         if (typeof CribaCorrelaciones === 'undefined') return null;
-        const clave = `${var1}|${var2}`;
+        const n = (AnalizadorEstadistico.obtenerDatos() || []).length;
+        const clave = `${var1}|${var2}|${n}`;
         if (this._cacheCriba.clave === clave) return this._cacheCriba.criba;
 
         const candidatos = this._candidatos(var1, var2);
@@ -135,7 +136,13 @@ const AnalisisDimensiones = {
             return `<p class="help-text" style="margin-top:0.5rem;">No se generaron objetivos específicos por dimensiones.
                 Columnas de escala detectadas: ${escalas.length ? escalas.map(c => `<code>${c}</code>`).join(', ') : '<em>ninguna</em>'}.
                 Aparte de las dos seleccionadas quedan <strong>${otras.length}</strong> para usar como dimensiones.
-                ${otras.length === 0 ? 'Genera una base con filas de tipo <strong>Dimensión</strong> en cada prueba (además de la General).' : ''}</p>`;
+                ${otras.length === 0 ? 'Genera una base con filas de tipo <strong>Dimensión</strong> en cada prueba (además de la General).' : ''}</p>
+                        <p class="help-text" style="font-family: monospace; font-size: 0.85em;">Diagnóstico técnico —
+                        CribaCorrelaciones: ${typeof CribaCorrelaciones} ·
+                        candidatos en vivo: ${this._candidatos(var1, var2).length} ·
+                        estructura: ${typeof EtiquetasVariables !== 'undefined' ? EtiquetasVariables.estructura().length : '—'} ·
+                        caché: ${this._cacheCriba.clave || 'vacía'} ·
+                        criba: ${criba ? 'evaluados=' + criba.evaluados.length : 'null'}</p>`;
         }
 
         const contexto = (unidadAnalisis && lugarContexto) ? ` en ${unidadAnalisis} de ${lugarContexto}` : '';
