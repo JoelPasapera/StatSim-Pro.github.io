@@ -11,6 +11,29 @@
 const ExportadorWord = {
 
     _n: 0, // contador de tablas
+    _f: 0, // contador de figuras
+
+    // Captura el SVG YA RENDERIZADO en la página (cero re-cálculo, cero
+    // clonado: XMLSerializer no muta el DOM). Devuelve null si no existe o el
+    // entorno no lo soporta — la figura simplemente se omite.
+    _capturarSVG(idContenedor) {
+        if (typeof document === 'undefined' || typeof XMLSerializer === 'undefined') return null;
+        const cont = document.getElementById(idContenedor);
+        const svg = cont ? cont.querySelector('svg') : null;
+        return svg ? new XMLSerializer().serializeToString(svg) : null;
+    },
+
+    // Figura APA 7: "Figura N" en negrita, título en cursiva, gráfico vectorial
+    // centrado y Nota opcional. Numeración independiente de las tablas.
+    _figura(idContenedor, titulo, nota) {
+        const svg = this._capturarSVG(idContenedor);
+        if (!svg) return '';
+        this._f += 1;
+        return `<p style="margin:14pt 0 0;line-height:200%;"><b>Figura ${this._f}</b></p>
+            <p style="margin:0 0 6pt;line-height:200%;"><i>${titulo}</i></p>
+            <p style="margin:0;text-align:center;">${svg}</p>
+            ${nota ? `<p style="margin:4pt 0 0;font-size:11pt;line-height:150%;"><i>Nota.</i> ${nota}</p>` : ''}`;
+    },
 
     _tablaAPA(titulo, headers, filas, nota) {
         this._n += 1;
@@ -133,6 +156,7 @@ const ExportadorWord = {
 
     generarCapitulo(ctx) {
         this._n = 0;
+        this._f = 0;
         this._secciones = [];
         const I = InterpretacionesEstadisticas;
         const A = AnalizadorEstadistico;
@@ -218,6 +242,10 @@ const ExportadorWord = {
              [et2, n2.prueba, n2.estadistico.toFixed(3), fp(n2.pValor), n2.normal ? 'Normal' : 'No normal']],
             'Criterio: p > .05 indica que la distribución no se desvía significativamente de la normal.');
         h += this._p(I.generarInterpretacionNormalidad(et1, et2, resultado));
+        h += this._figura('histVariable1', `Distribución de ${et1} con curva normal teórica superpuesta`, null);
+        h += this._figura('qqVariable1', `Gráfico Q-Q de ${et1}`, null);
+        h += this._figura('histVariable2', `Distribución de ${et2} con curva normal teórica superpuesta`, null);
+        h += this._figura('qqVariable2', `Gráfico Q-Q de ${et2}`, null);
 
         // ---- Correlación principal ----
         const esSp = I._esSpearman(resultado.tipoCorrelacion);
@@ -230,6 +258,8 @@ const ExportadorWord = {
               `${resultado.interpretacion.fuerza} (${resultado.interpretacion.direccion})`]],
             null);
         h += this._p(I.generarInterpretacionCorrelacion(et1, et2, resultado));
+        h += this._figura('graficoDispersion', `Diagrama de dispersión entre ${et1} y ${et2}`,
+            'Incluye la recta de regresión por mínimos cuadrados y la banda de confianza al 95%.');
 
         // ---- Objetivos específicos (criba + Holm) ----
         if (criba && criba.seleccionados && criba.seleccionados.length) {
