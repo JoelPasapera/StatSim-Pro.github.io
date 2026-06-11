@@ -105,7 +105,8 @@ const AnalisisDimensiones = {
     cribarObjetivos(var1, var2) {
         if (typeof CribaCorrelaciones === 'undefined') return null;
         const n = (AnalizadorEstadistico.obtenerDatos() || []).length;
-        const clave = `${var1}|${var2}|${n}`;
+        const vEt = (typeof EtiquetasVariables !== 'undefined' && EtiquetasVariables._version) || 0;
+        const clave = `${var1}|${var2}|${n}|e${vEt}`;
         if (this._cacheCriba.clave === clave) return this._cacheCriba.criba;
 
         const candidatos = this._candidatos(var1, var2);
