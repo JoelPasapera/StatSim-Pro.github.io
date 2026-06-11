@@ -688,6 +688,10 @@ function ejecutarCorrelacion(var1, var2, tipoPrueba) {
     window.ultimoAnalisis = { var1, var2, et1, et2, resultado, marco, criba, tipoPrueba, unidadAnalisis, lugarContexto, tituloTesis };
 
     mostrarMarcoMetodologico(marco, analisisDimensiones);
+    if (typeof MatrizConsistencia !== 'undefined') {
+        try { MatrizConsistencia.mostrar(window.ultimoAnalisis); }
+        catch (e) { console.error('Matriz de consistencia:', e); }
+    }
     mostrarTablaSociodemografica();
     mostrarNiveles(var1, var2, et1, et2);
     if (typeof CribaSociodemografica !== 'undefined') {
