@@ -190,6 +190,29 @@ const ExportadorWord = {
             + `<br style="page-break-after:always;">`;
     },
 
+    // Matriz de consistencia como tabla APA (una fila, cinco columnas-lista,
+    // alineación superior, 10pt para caber en página vertical).
+    _matrizConsistenciaWord(m) {
+        this._n += 1;
+        const celda = items => items.map(it => typeof it === 'string'
+            ? `<p style="margin:0 0 4pt;line-height:120%;">• ${it}</p>`
+            : `<p style="margin:0 0 4pt;line-height:120%;"><b>${it.rotulo}:</b> ${it.texto}</p>`).join('');
+        const tdS = 'style="padding:3pt 4pt;vertical-align:top;border-bottom:1pt solid black;"';
+        const thS = 'style="border-top:1pt solid black;border-bottom:1pt solid black;padding:3pt 4pt;font-weight:bold;"';
+        return `
+            <p style="margin:14pt 0 0;line-height:200%;"><b>Tabla ${this._n}</b></p>
+            <p style="margin:0 0 6pt;line-height:200%;"><i>Matriz de consistencia del estudio</i></p>
+            <table width="100%" cellspacing="0" style="border-collapse:collapse;font-size:10pt;line-height:120%;">
+                <tr><td ${thS} width="17%">Problema</td><td ${thS} width="23%">Objetivos</td>
+                    <td ${thS} width="25%">Hipótesis</td><td ${thS} width="15%">Variables</td>
+                    <td ${thS} width="20%">Metodología</td></tr>
+                <tr><td ${tdS}>${celda(m.problema)}</td><td ${tdS}>${celda(m.objetivos)}</td>
+                    <td ${tdS}>${celda(m.hipotesis)}</td><td ${tdS}>${celda(m.variables)}</td>
+                    <td ${tdS}>${celda(m.metodologia)}</td></tr>
+            </table>
+            <p style="margin:4pt 0 0;font-size:10pt;line-height:140%;"><i>Nota.</i> Generada desde el marco del estudio: la correspondencia entre problema, objetivos, hipótesis, variables y metodología está garantizada por construcción.</p>`;
+    },
+
     generarCapitulo(ctx) {
         this._n = 0;
         this._f = 0;
@@ -218,6 +241,14 @@ const ExportadorWord = {
             if (marco.tipoYDiseno) {
                 h += this._seccion('Tipo y diseño de estudio');
                 marco.tipoYDiseno.split('\n\n').forEach(p => { h += this._p(p); });
+            }
+            // Matriz de consistencia: consume el MISMO constructor que la web
+            if (typeof MatrizConsistencia !== 'undefined') {
+                const mx = MatrizConsistencia.construir(ctx);
+                if (mx) {
+                    h += this._seccion('Matriz de consistencia');
+                    h += this._matrizConsistenciaWord(mx);
+                }
             }
         }
 
