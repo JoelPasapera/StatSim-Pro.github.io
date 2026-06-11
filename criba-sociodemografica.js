@@ -116,8 +116,19 @@ const CribaSociodemografica = {
 
     // Render de la sección web.
     mostrar(var1, var2, et1, et2) {
-        const container = document.getElementById('resultadosHallazgosSocio');
-        if (!container) return;
+        // Autosuficiente: si el contenedor no existe en el HTML (index antiguo),
+        // se crea dinámicamente justo después de la sección de Niveles.
+        let container = document.getElementById('resultadosHallazgosSocio');
+        if (!container) {
+            const ancla = document.getElementById('resultadosNiveles')
+                || document.getElementById('resultadosDimensiones')
+                || document.getElementById('marcoMetodologicoContainer');
+            if (!ancla || !ancla.parentNode) return;
+            container = document.createElement('div');
+            container.id = 'resultadosHallazgosSocio';
+            container.style.display = 'none';
+            ancla.parentNode.insertBefore(container, ancla.nextSibling);
+        }
         const res = this.analizar(var1, var2, et1, et2);
         if (!res) { container.style.display = 'none'; container.innerHTML = ''; return; }
 
