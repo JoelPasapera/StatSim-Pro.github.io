@@ -70,10 +70,10 @@ const InterpretacionesEstadisticas = {
         // 2) Resultados por variable y 3) consecuencia metodológica
         if (norm1.normal && norm2.normal) {
             texto += `Los resultados mostraron que ambas variables cumplieron el supuesto (${rep(var1, norm1)}; ${rep(var2, norm2)}); en ambos casos p > 0.05, por lo que se retiene la hipótesis de normalidad. `;
-            texto += `En consecuencia, corresponde el uso de estadística paramétrica: se aplicó el coeficiente de correlación de Pearson (r), que cuantifica la relación LINEAL entre las variables y constituye el estimador de mayor potencia cuando la normalidad se satisface (Hernández-Sampieri y Mendoza, 2018). `;
+            texto += `En consecuencia, corresponde el uso de estadística paramétrica: se aplicó el coeficiente de correlación de Pearson (r), que cuantifica la relación LINEAL entre las variables y constituye el estimador de mayor potencia cuando la normalidad se satisface (Hernández-Sampieri y Mendoza, 2023). `;
         } else if (!norm1.normal && !norm2.normal) {
             texto += `Los resultados mostraron que ambas variables se desviaron significativamente de la normalidad (${rep(var1, norm1)}; ${rep(var2, norm2)}); en ambos casos p ≤ 0.05, incumpliéndose el supuesto exigido por la estadística paramétrica. `;
-            texto += `En consecuencia, se empleó el coeficiente de correlación de Spearman (ρ), un método no paramétrico basado en rangos que no requiere normalidad y cuantifica la relación MONOTÓNICA entre las variables, evitando así conclusiones distorsionadas por la forma de las distribuciones (Hernández-Sampieri y Mendoza, 2018). `;
+            texto += `En consecuencia, se empleó el coeficiente de correlación de Spearman (ρ), un método no paramétrico basado en rangos que no requiere normalidad y cuantifica la relación MONOTÓNICA entre las variables, evitando así conclusiones distorsionadas por la forma de las distribuciones (Hernández-Sampieri y Mendoza, 2023). `;
         } else {
             const varNoNormal = !norm1.normal ? var1 : var2;
             const normNoNormal = !norm1.normal ? norm1 : norm2;
@@ -86,7 +86,7 @@ const InterpretacionesEstadisticas = {
         }
 
         // 4) Recomendación de corroboración visual
-        texto += `Se recomienda corroborar esta decisión inspeccionando los gráficos Q-Q: si los puntos se alinean sobre la recta de referencia, la conclusión de la prueba queda visualmente respaldada.`;
+        texto += `La inspección de los gráficos Q-Q respalda visualmente esta decisión, en tanto los puntos se alinean sobre la recta de referencia.`;
 
         return texto;
     },
@@ -170,11 +170,11 @@ const InterpretacionesEstadisticas = {
         // 7) Potencia post-hoc, especialmente informativa cuando no hay significancia
         if (poder !== null) {
             if (pValor >= 0.05 && poder < 0.8) {
-                texto += `Adicionalmente, la potencia post-hoc estimada fue de ${(poder * 100).toFixed(0)}% (< 80%), por lo que no puede descartarse un error de Tipo II: con este tamaño muestral, un efecto real de esta magnitud podría haber pasado inadvertido.`;
+                texto += `No puede descartarse un error de Tipo II: con este tamaño muestral, un efecto real de esta magnitud podría haber pasado inadvertido.`;
             } else if (pValor >= 0.05) {
-                texto += `Adicionalmente, la potencia post-hoc estimada fue de ${(poder * 100).toFixed(0)}%, de modo que el estudio tenía capacidad razonable para detectar el efecto si existiera; la no significancia resulta, por tanto, informativa.`;
+                texto += `El tamaño muestral otorgaba capacidad razonable para detectar el efecto si existiera; la no significancia resulta, por tanto, informativa.`;
             } else {
-                texto += `La potencia post-hoc estimada fue de ${(poder * 100).toFixed(0)}%, lo que respalda la estabilidad del hallazgo.`;
+                texto += `La precisión del intervalo de confianza respalda la estabilidad del hallazgo.`;
             }
         }
 
@@ -228,7 +228,7 @@ const InterpretacionesEstadisticas = {
             } else {
                 texto += `No obstante, el coeficiente observado (${simboloMuestral} = ${this._fmtNum(coef)}) describe una tendencia que la variabilidad muestral no permite generalizar; `;
                 texto += poder !== null && poder < 0.8
-                    ? `dado que la potencia post-hoc fue limitada (${(poder * 100).toFixed(0)}%), un estudio con mayor tamaño muestral podría esclarecer si esta tendencia constituye un efecto real (posible error de Tipo II). `
+                    ? `un estudio con mayor tamaño muestral podría esclarecer si esta tendencia constituye un efecto real (posible error de Tipo II). `
                     : `un estudio de replicación permitiría esclarecer si esta tendencia constituye un efecto real. `;
             }
         }
@@ -247,8 +247,8 @@ const InterpretacionesEstadisticas = {
 
         // 4) Líneas de profundización
         texto += esSpearman
-            ? `Asimismo, se sugiere explorar posibles variables mediadoras o moderadoras, considerar transformaciones o métodos robustos si se desea modelar la relación, y triangular estos hallazgos cuantitativos con evidencia cualitativa para una comprensión más completa del fenómeno (Hernández-Sampieri y Mendoza, 2018).`
-            : `Asimismo, se sugiere complementar con un análisis de regresión lineal (viable al cumplirse la normalidad), explorar posibles variables mediadoras o moderadoras, y triangular estos hallazgos cuantitativos con evidencia cualitativa para una comprensión más completa del fenómeno (Hernández-Sampieri y Mendoza, 2018).`;
+            ? `Asimismo, se sugiere explorar posibles variables mediadoras o moderadoras, considerar transformaciones o métodos robustos si se desea modelar la relación, y triangular estos hallazgos cuantitativos con evidencia cualitativa para una comprensión más completa del fenómeno (Hernández-Sampieri y Mendoza, 2023).`
+            : `Asimismo, se sugiere complementar con un análisis de regresión lineal (viable al cumplirse la normalidad), explorar posibles variables mediadoras o moderadoras, y triangular estos hallazgos cuantitativos con evidencia cualitativa para una comprensión más completa del fenómeno (Hernández-Sampieri y Mendoza, 2023).`;
 
         return texto;
     },
@@ -366,7 +366,7 @@ const InterpretacionesEstadisticas = {
             return `Se evaluaron ${validos.length} pares candidatos y no fue posible seleccionar objetivos (datos insuficientes o no numéricos).`;
         }
         const selSobreUmbral = sel.filter(s => s.superaUmbral).length;
-        let t = `Se evaluaron ${validos.length} pares candidatos y se seleccionaron los ${sel.length} de mayor magnitud absoluta (máximo configurado: ${criba.maximo}), priorizando los pares dimensión ↔ escala general: `;
+        let t = `Se evaluaron ${validos.length} pares candidatos y se seleccionaron los ${sel.length} de mayor magnitud absoluta, priorizando los pares dimensión ↔ escala general: `;
         t += sel.map(s => `${s.etiquetaX} ↔ ${s.etiquetaY} (${this._esSpearman(s.metodo) ? 'ρ' : 'r'} = ${s.coeficiente.toFixed(3)})`).join('; ') + '. ';
         if (selSobreUmbral === sel.length) {
             t += `Todos alcanzan el criterio de Cohen (1988) de |r| ≥ ${criba.umbral.toFixed(2)} para un efecto al menos pequeño. `;
@@ -544,7 +544,7 @@ const InterpretacionesEstadisticas = {
             d += `Dado que el p-valor no es inferior a α (${this._fmtP(resultado.pValor)} frente a α = ${pruebaHip.alpha}), no se rechaza la hipótesis nula: **no existe evidencia suficiente** de una relación estadísticamente significativa entre ${var1} y ${var2}${contexto}. `;
             d += `Cabe recordar que no rechazar H₀ no equivale a demostrar que la correlación poblacional sea nula`;
             d += (poder !== null && poder < 0.8)
-                ? `; de hecho, la potencia post-hoc estimada fue de ${(poder * 100).toFixed(0)}% (< 80%), por lo que no puede descartarse un error de Tipo II.\n\n`
+                ? `; no puede descartarse un error de Tipo II.\n\n`
                 : `.\n\n`;
         }
 
