@@ -70,6 +70,67 @@ const ExportadorWord = {
             `<p style="margin:0 0 0;line-height:200%;text-indent:-0.5in;margin-left:0.5in;">${r}</p>`).join('');
     },
 
+    // Portada de tesis (una sola hoja): logo, título, autor, lugar y año.
+    _portada(ctx) {
+        const anio = new Date().getFullYear();
+        const logo = `<svg width="150" height="150" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="100,30 185,75 100,120 15,75" fill="#0f172a"/>
+            <polygon points="100,42 168,75 100,108 32,75" fill="#1e293b"/>
+            <path d="M55 95 L55 130 Q100 155 145 130 L145 95 L100 120 Z" fill="#334155"/>
+            <circle cx="100" cy="75" r="6" fill="#f8fafc"/>
+            <path d="M100 75 Q150 85 158 135" stroke="#d4af37" stroke-width="5" fill="none"/>
+            <circle cx="158" cy="135" r="7" fill="#d4af37"/>
+            <rect x="150" y="140" width="16" height="26" rx="3" fill="#f1c40f"/>
+            <text x="100" y="190" text-anchor="middle" font-family="Times New Roman" font-size="20" font-weight="bold" fill="#0f172a">StatSim Pro</text>
+        </svg>`;
+        return `<div style="text-align:center;">
+            <p style="margin:60pt 0 30pt;">${logo}</p>
+            <p style="margin:0 0 60pt;line-height:200%;font-size:16pt;"><b>${ctx.tituloTesis || 'Título de la investigación'}</b></p>
+            <p style="margin:0;line-height:200%;font-size:13pt;"><b>Autor:</b> Joel Pasapera</p>
+            <p style="margin:120pt 0 0;line-height:200%;font-size:12pt;">Lima, Perú</p>
+            <p style="margin:0;line-height:200%;font-size:12pt;">${anio}</p>
+        </div><br style="page-break-after:always;">`;
+    },
+
+    // Resumen estructurado (una hoja): Introducción, Objetivo, Métodos,
+    // Resultados y Conclusiones, en formato APA compacto.
+    _resumen(ctx) {
+        const I = InterpretacionesEstadisticas, A = AnalizadorEstadistico;
+        const { et1, et2, resultado, criba, marco, tipoPrueba } = ctx;
+        const E = (typeof EtiquetasVariables !== 'undefined') ? EtiquetasVariables : null;
+        const i1 = E && E.pruebaConGeneral(ctx.var1) ? E.pruebaConGeneral(ctx.var1).prueba : null;
+        const i2 = E && E.pruebaConGeneral(ctx.var2) ? E.pruebaConGeneral(ctx.var2).prueba : null;
+        const n = resultado.n;
+        const esSp = I._esSpearman(resultado.tipoCorrelacion);
+        const sim = esSp ? 'ρ' : 'r';
+        const fp = p => p < 0.001 ? 'p < .001' : 'p = ' + p.toFixed(3).replace(/^0\./, '.');
+        const gl = Number.isFinite(resultado.gl) ? resultado.gl : n - 2;
+        const ic = resultado.intervaloConfianza;
+        const sig = resultado.pValor < 0.05;
+
+        const intro = `El estudio de la relación entre ${et1} ${I._conj(et2)} ${et2} resulta relevante para la psicología, pues aporta evidencia empírica sobre la asociación entre constructos centrales del funcionamiento psicológico y orienta futuras intervenciones e investigaciones en la población de interés.`;
+        const objetivo = marco ? marco.objetivoGeneral : `Determinar la relación entre ${et1} y ${et2}.`;
+        const instr = (i1 && i2) ? ` Las variables se midieron mediante ${i1} (${et1}) y ${i2} (${et2}).` : ` Las variables se midieron mediante instrumentos estandarizados.`;
+        const metodos = `Investigación de tipo básica, enfoque cuantitativo, diseño no experimental, alcance correlacional y corte transversal, con una muestra de ${n} participantes.${instr} El análisis comprendió pruebas de normalidad, el coeficiente de ${esSp ? 'Spearman' : 'Pearson'} y la corrección de Holm para los objetivos específicos.`;
+
+        let resul = `${resultado.normalidad1.normal && resultado.normalidad2.normal ? 'Ambas variables cumplieron el supuesto de normalidad' : 'Al menos una variable se desvió de la normalidad'}, por lo que se aplicó ${esSp ? 'Spearman' : 'Pearson'}. Se obtuvo ${sim}(${gl}) = ${resultado.coeficiente.toFixed(3)}, ${fp(resultado.pValor)}${ic ? `, IC 95% [${ic.inferior.toFixed(2)}, ${ic.superior.toFixed(2)}]` : ''}, correlación ${resultado.interpretacion.fuerza} ${resultado.interpretacion.direccion}.`;
+        if (criba && criba.seleccionados && criba.seleccionados.length) {
+            const res = criba.seleccionados.map(s => { try { return A.calcularCorrelacion(s.columnaX, s.columnaY, tipoPrueba); } catch (e) { return null; } });
+            const holm = A.ajustarPValoresHolm(res.map(r => r ? r.pValor : NaN));
+            const m = holm.filter(p => p < 0.05).length;
+            resul += ` De los ${criba.seleccionados.length} objetivos específicos evaluados, ${m} ${m === 1 ? 'resultó significativo' : 'resultaron significativos'} tras la corrección de Holm.`;
+        }
+        const concl = sig
+            ? `Existe una relación estadísticamente significativa, de dirección ${resultado.interpretacion.direccion} y magnitud ${resultado.interpretacion.fuerza}, entre ${et1} ${I._conj(et2)} ${et2}; se rechaza la hipótesis nula.`
+            : `No se halló evidencia de una relación estadísticamente significativa entre ${et1} ${I._conj(et2)} ${et2}; no se rechaza la hipótesis nula.`;
+
+        const b = (t, x) => `<p style="margin:0 0 6pt;line-height:150%;text-align:justify;"><b>${t}.</b> ${x}</p>`;
+        return `<p style="margin:0 0 10pt;line-height:200%;text-align:center;"><a name="resumen"></a><b>Resumen</b></p>`
+            + b('Introducción', intro) + b('Objetivo', objetivo) + b('Métodos', metodos)
+            + b('Resultados', resul) + b('Conclusiones', concl)
+            + `<br style="page-break-after:always;">`;
+    },
+
     generarCapitulo(ctx) {
         this._n = 0;
         this._secciones = [];
@@ -78,11 +139,6 @@ const ExportadorWord = {
         const datos = A.obtenerDatos() || [];
         const { var1, var2, et1, et2, resultado, criba, tipoPrueba, marco } = ctx;
         let h = '';
-
-        // ---- Portada: título de la tesis ----
-        const portada = ctx.tituloTesis
-            ? `<p style="margin:24pt 0;line-height:200%;text-align:center;font-size:14pt;"><b>${ctx.tituloTesis}</b></p>`
-            : '';
 
         // ---- Marco metodológico completo ----
         if (marco) {
@@ -201,7 +257,9 @@ const ExportadorWord = {
 
         // El índice se arma al final (ya registradas todas las secciones) y se
         // coloca al inicio, tras la portada.
-        return portada + this._indice() + h;
+        // Resumen en el índice (entrada manual, ancla 'resumen')
+        this._secciones.unshift({ id: 'resumen', t: 'Resumen', nivel: 1 });
+        return this._portada(ctx) + this._resumen(ctx) + this._indice() + h;
     },
 
     descargar(ctx) {
