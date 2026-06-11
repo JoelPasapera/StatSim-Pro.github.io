@@ -10,28 +10,71 @@
 
 const ExportadorWord = {
 
+    _LOGO_SVG: `<svg width="150" height="150" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="100,30 185,75 100,120 15,75" fill="#0f172a"/>
+            <polygon points="100,42 168,75 100,108 32,75" fill="#1e293b"/>
+            <path d="M55 95 L55 130 Q100 155 145 130 L145 95 L100 120 Z" fill="#334155"/>
+            <circle cx="100" cy="75" r="6" fill="#f8fafc"/>
+            <path d="M100 75 Q150 85 158 135" stroke="#d4af37" stroke-width="5" fill="none"/>
+            <circle cx="158" cy="135" r="7" fill="#d4af37"/>
+            <rect x="150" y="140" width="16" height="26" rx="3" fill="#f1c40f"/>
+            <text x="100" y="190" text-anchor="middle" font-family="Times New Roman" font-size="20" font-weight="bold" fill="#0f172a">StatSim Pro</text>
+        </svg>`,
+
     _n: 0, // contador de tablas
     _f: 0, // contador de figuras
 
-    // Captura el SVG YA RENDERIZADO en la página (cero re-cálculo, cero
-    // clonado: XMLSerializer no muta el DOM). Devuelve null si no existe o el
-    // entorno no lo soporta — la figura simplemente se omite.
+    // Captura el SVG YA RENDERIZADO en la página con sus dimensiones (cero
+    // re-cálculo: XMLSerializer no muta el DOM). null si no existe.
     _capturarSVG(idContenedor) {
         if (typeof document === 'undefined' || typeof XMLSerializer === 'undefined') return null;
         const cont = document.getElementById(idContenedor);
         const svg = cont ? cont.querySelector('svg') : null;
-        return svg ? new XMLSerializer().serializeToString(svg) : null;
+        if (!svg) return null;
+        const w = +svg.getAttribute('width') || 520;
+        const h = +svg.getAttribute('height') || 380;
+        return { svg: new XMLSerializer().serializeToString(svg), w, h };
+    },
+
+    // Rasteriza un SVG a PNG base64 vía canvas a 2x (nitidez de impresión).
+    // Word no renderiza SVG inline en HTML, pero sí <img> con data URI PNG.
+    // Devuelve Promise<{url,w,h}|null>; ante cualquier fallo resuelve null
+    // (la figura se omite sin romper el documento).
+    _rasterizar(svgStr, w, h) {
+        return new Promise(resolve => {
+            try {
+                if (typeof Image === 'undefined' || typeof document === 'undefined') return resolve(null);
+                const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w * 2; canvas.height = h * 2;
+                        const c = canvas.getContext('2d');
+                        c.fillStyle = '#ffffff';
+                        c.fillRect(0, 0, canvas.width, canvas.height);
+                        c.scale(2, 2);
+                        c.drawImage(img, 0, 0, w, h);
+                        URL.revokeObjectURL(url);
+                        resolve({ url: canvas.toDataURL('image/png'), w, h });
+                    } catch (e) { URL.revokeObjectURL(url); resolve(null); }
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+                img.src = url;
+            } catch (e) { resolve(null); }
+        });
     },
 
     // Figura APA 7: "Figura N" en negrita, título en cursiva, gráfico vectorial
     // centrado y Nota opcional. Numeración independiente de las tablas.
     _figura(idContenedor, titulo, nota) {
-        const svg = this._capturarSVG(idContenedor);
-        if (!svg) return '';
+        const png = this._png && this._png[idContenedor];
+        if (!png) return '';
         this._f += 1;
         return `<p style="margin:14pt 0 0;line-height:200%;"><b>Figura ${this._f}</b></p>
             <p style="margin:0 0 6pt;line-height:200%;"><i>${titulo}</i></p>
-            <p style="margin:0;text-align:center;">${svg}</p>
+            <p style="margin:0;text-align:center;"><img src="${png.url}" width="${png.w}" height="${png.h}" style="max-width:100%;"></p>
             ${nota ? `<p style="margin:4pt 0 0;font-size:11pt;line-height:150%;"><i>Nota.</i> ${nota}</p>` : ''}`;
     },
 
@@ -96,16 +139,9 @@ const ExportadorWord = {
     // Portada de tesis (una sola hoja): logo, título, autor, lugar y año.
     _portada(ctx) {
         const anio = new Date().getFullYear();
-        const logo = `<svg width="150" height="150" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-            <polygon points="100,30 185,75 100,120 15,75" fill="#0f172a"/>
-            <polygon points="100,42 168,75 100,108 32,75" fill="#1e293b"/>
-            <path d="M55 95 L55 130 Q100 155 145 130 L145 95 L100 120 Z" fill="#334155"/>
-            <circle cx="100" cy="75" r="6" fill="#f8fafc"/>
-            <path d="M100 75 Q150 85 158 135" stroke="#d4af37" stroke-width="5" fill="none"/>
-            <circle cx="158" cy="135" r="7" fill="#d4af37"/>
-            <rect x="150" y="140" width="16" height="26" rx="3" fill="#f1c40f"/>
-            <text x="100" y="190" text-anchor="middle" font-family="Times New Roman" font-size="20" font-weight="bold" fill="#0f172a">StatSim Pro</text>
-        </svg>`;
+        const logo = (this._png && this._png.__logo)
+            ? `<img src="${this._png.__logo.url}" width="150" height="150">`
+            : '';
         return `<div style="text-align:center;">
             <p style="margin:60pt 0 30pt;">${logo}</p>
             <p style="margin:0 0 60pt;line-height:200%;font-size:16pt;"><b>${ctx.tituloTesis || 'Título de la investigación'}</b></p>
@@ -292,11 +328,20 @@ const ExportadorWord = {
         return this._portada(ctx) + this._resumen(ctx) + this._indice() + h;
     },
 
-    descargar(ctx) {
+    async descargar(ctx) {
         if (!ctx || !ctx.resultado) {
             mostrarToast('Primero ejecuta un análisis para poder exportar el capítulo', 'error');
             return;
         }
+        // Pre-rasterización: SVG (DOM vivo) → PNG base64, en paralelo.
+        const ids = ['histVariable1', 'qqVariable1', 'histVariable2', 'qqVariable2', 'graficoDispersion'];
+        const tareas = ids.map(id => {
+            const cap = this._capturarSVG(id);
+            return cap ? this._rasterizar(cap.svg, cap.w, cap.h).then(p => [id, p]) : Promise.resolve([id, null]);
+        });
+        tareas.push(this._rasterizar(this._LOGO_SVG, 200, 200).then(p => ['__logo', p && { url: p.url, w: 150, h: 150 }]));
+        this._png = Object.fromEntries((await Promise.all(tareas)).filter(([, p]) => p));
+
         const cuerpo = this.generarCapitulo(ctx);
         const doc = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
             xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
