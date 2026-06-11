@@ -13,11 +13,13 @@ const EtiquetasVariables = {
 
     // Registra el diccionario de etiquetas y la estructura de pruebas.
     fijar(mapa, estructura) {
+        this._version = (this._version || 0) + 1;
         this._mapa = mapa || {};
         this._estructura = estructura || [];
     },
 
     limpiar() {
+        this._version = (this._version || 0) + 1;
         this._mapa = {};
         this._estructura = [];
     },
