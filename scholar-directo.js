@@ -51,7 +51,11 @@ const ScholarDirecto = {
         return obras;
     },
 
+    _cache: {},
+
     async buscar(query, desde) {
+        const ck = `${this._norm ? this._norm(query) : query.toLowerCase()}|${desde || ''}`;
+        if (this._cache[ck]) return { ...this._cache[ck], deCache: true };
         const objetivo = this.urlScholar(query, desde);
         const arsenal = (typeof ProxiesCORS !== 'undefined')
             ? ProxiesCORS.ordenados()
@@ -77,7 +81,9 @@ const ScholarDirecto = {
                 const obras = this.parsearHTML(html);
                 if (obras.length) {
                     if (typeof ProxiesCORS !== 'undefined') ProxiesCORS.registrar(proxy.id, true, Date.now() - t0);
-                    return { obras, proxy: proxy.id, captchas };
+                    const r2 = { obras, proxy: proxy.id, captchas };
+                    this._cache[ck] = r2;
+                    return r2;
                 }
                 if (typeof ProxiesCORS !== 'undefined') ProxiesCORS.registrar(proxy.id, false);
                 errores.push(`${proxy.id}: sin resultados`);
