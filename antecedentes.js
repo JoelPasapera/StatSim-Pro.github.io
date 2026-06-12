@@ -20,18 +20,28 @@ const Antecedentes = {
     // ---------- Capa de datos (OpenAlex) ----------
 
     construirURL(query, filtros = {}) {
-        const f = [];
+        // RELEVANCIA, no citas: ordenar por cited_by_count arrastra trabajos
+        // muy citados apenas tangenciales. Y se busca SOLO en título+resumen
+        // (title_and_abstract.search), no en texto completo: precisión >> volumen.
+        let q = String(query).replace(/,/g, ' ').trim(); // la coma separa filtros en OpenAlex
+        if (filtros.fraseExacta && !/^".*"$/.test(q)) q = `"${q}"`;
+        const f = [`title_and_abstract.search:${q}`, 'type:article'];
         if (filtros.desde) f.push(`from_publication_date:${filtros.desde}-01-01`);
         if (filtros.idioma) f.push(`language:${filtros.idioma}`);
-        f.push('type:article');
         const params = new URLSearchParams({
-            search: query,
-            'per-page': String(this.CONFIG.POR_PAGINA),
-            sort: 'cited_by_count:desc'
+            filter: f.join(','),
+            sort: 'relevance_score:desc',
+            'per-page': String(this.CONFIG.POR_PAGINA)
         });
-        if (f.length) params.set('filter', f.join(','));
         if (this.CONFIG.MAILTO) params.set('mailto', this.CONFIG.MAILTO);
         return `https://api.openalex.org/works?${params.toString()}`;
+    },
+
+    // URL de Google Académico (se abre en pestaña nueva: complemento manual).
+    urlScholar(query, filtros = {}) {
+        const p = new URLSearchParams({ q: query, hl: 'es' });
+        if (filtros.desde) p.set('as_ylo', String(filtros.desde));
+        return `https://scholar.google.com/scholar?${p.toString()}`;
     },
 
     // OpenAlex entrega el resumen como índice invertido {palabra: [posiciones]}.
@@ -131,7 +141,11 @@ const Antecedentes = {
                             <select id="antIdioma" class="input"><option value="">Todos</option>
                             <option value="es">Español</option><option value="en" selected>Inglés</option></select></div>
                     </div>
+                    <label style="display:inline-flex; align-items:center; gap:0.4rem; margin-bottom:0.6rem;">
+                        <input type="checkbox" id="antFrase"> Frase exacta (más precisión, menos resultados)
+                    </label><br>
                     <button id="antBuscar" class="btn btn-primary">🔎 Buscar antecedentes</button>
+                    <button id="antScholar" class="btn btn-outline" title="Abre tu búsqueda en Google Académico (pestaña nueva)">↗ Ver en Google Académico</button>
                     <div id="antEstado" class="help-text" style="margin-top:0.5rem;"></div>
                     <div id="antResultados"></div>
                     <div id="antSeleccion"></div>
@@ -139,6 +153,10 @@ const Antecedentes = {
             </details>
         </div>`;
         document.getElementById('antBuscar').addEventListener('click', () => this._onBuscar());
+        document.getElementById('antScholar').addEventListener('click', () => {
+            const q = document.getElementById('antQuery').value.trim();
+            if (q) window.open(this.urlScholar(q, { desde: document.getElementById('antDesde').value }), '_blank');
+        });
     },
 
     async _onBuscar() {
@@ -149,11 +167,12 @@ const Antecedentes = {
         try {
             const obras = await this.buscar(q, {
                 desde: document.getElementById('antDesde').value,
-                idioma: document.getElementById('antIdioma').value
+                idioma: document.getElementById('antIdioma').value,
+                fraseExacta: document.getElementById('antFrase').checked
             });
             this._obras = obras;
             estado.textContent = obras.length
-                ? `${obras.length} resultados (ordenados por citas). Marca los relevantes:`
+                ? `${obras.length} resultados (ordenados por relevancia). Marca los pertinentes:`
                 : 'Sin resultados: prueba términos en inglés o amplía el rango de años.';
             this._renderResultados(obras);
         } catch (e) {
