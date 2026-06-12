@@ -243,7 +243,7 @@ const Antecedentes = {
                   <option value="es" selected>Español</option><option value="en">Inglés</option></select></div>
               </div>
               <label style="display:inline-flex;align-items:center;gap:0.4rem;margin:0 0 0.6rem;">
-                <input type="checkbox" id="antUsarScholar"> Intentar Google Académico directo (experimental, vía proxy)
+                <input type="checkbox" id="antUsarScholar" checked> Intentar Google Académico directo (experimental, vía proxy)
               </label><br>
               <button id="antBuscar" class="btn btn-primary">🔎 Buscar</button>
               <button id="antScholar" class="btn btn-outline">↗ Abrir en Google Académico</button>
@@ -288,7 +288,7 @@ const Antecedentes = {
                 estado.textContent = 'Intentando Google Académico vía proxy (puede tardar)…';
                 try {
                     const { obras, proxy } = await ScholarDirecto.buscar(q, f.desde);
-                    this._obras = obras.map(o => ({ ...o, autores: o.autoresRaw ? o.autoresRaw.split(/,\s*/) : [] }));
+                    this._obras = obras.map(o => ({ ...o, link: o.link || '', autores: o.autoresRaw ? o.autoresRaw.split(/,\s*/) : [] }));
                     estado.textContent = `${obras.length} resultados de Google Académico (proxy ${proxy}). Marca los pertinentes:`;
                     this._renderResultados(this._obras);
                     return;
@@ -312,13 +312,14 @@ const Antecedentes = {
             <tr>
               <td><input type="checkbox" data-i="${i}" ${this._seleccion.has(this._norm(o.titulo)) ? 'checked' : ''}></td>
               <td>${o.autores.slice(0, 3).join('; ')}${o.autores.length > 3 ? ' et al.' : ''} (${o.anio})</td>
-              <td>${o.doi ? `<a href="${o.doi}" target="_blank">${o.titulo}</a>` : o.titulo}</td>
+              <td>${(o.link || o.doi) ? `<a href="${o.link || o.doi}" target="_blank">${o.titulo}</a>` : o.titulo}</td>
               <td>${o.fuente}</td><td>${o.citas}</td>
+              <td>${(o.link || o.doi) ? `<a href="${o.link || o.doi}" target="_blank" title="Abrir artículo">🔗</a>` : '—'}</td>
               <td style="font-size:0.8em;color:#888;">${(o.fuentesAPI || []).join('+')}</td>
             </tr>`).join('');
         document.getElementById('antResultados').innerHTML = `
             <div class="table-container" style="margin-top:0.75rem;"><table class="table">
-              <thead><tr><th></th><th>Autores (año)</th><th>Título</th><th>Fuente</th><th>Citas</th><th>Base</th></tr></thead>
+              <thead><tr><th></th><th>Autores (año)</th><th>Título</th><th>Fuente</th><th>Citas</th><th>Enlace</th><th>Base</th></tr></thead>
               <tbody>${filas}</tbody></table></div>`;
         document.getElementById('antResultados').querySelectorAll('input[type=checkbox]').forEach(ch =>
             ch.addEventListener('change', e => {
@@ -336,7 +337,7 @@ const Antecedentes = {
         const refs = sel.map(o => this.citaAPA(o)).sort((a, b) => a.localeCompare(b, 'es'));
         const matriz = sel.map(o => `
             <tr><td>${this._autoresAPA(o.autores.slice(0, 3))}${o.autores.length > 3 ? ' et al.' : ''} (${o.anio})</td>
-              <td>${o.titulo}</td>
+              <td>${(o.link || o.doi) ? `<a href="${o.link || o.doi}" target="_blank">${o.titulo}</a>` : o.titulo}</td>
               <td>${o.resumen ? o.resumen.slice(0, this.CONFIG.RECORTE_RESUMEN) + (o.resumen.length > this.CONFIG.RECORTE_RESUMEN ? '…' : '') : '[REVISAR TEXTO COMPLETO]'}</td>
               <td>[COMPLETAR: relación con tus variables y aporte a tu estudio]</td></tr>`).join('');
         cont.innerHTML = `
