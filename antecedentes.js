@@ -209,7 +209,9 @@ const Antecedentes = {
             if (o.paginas) c += `, ${o.paginas}`;
             c += '.';
         }
+        // APA 7: cerrar con el DOI; si no hay DOI, con la URL de acceso disponible.
         if (o.doi) c += ` ${o.doi}`;
+        else if (o.link) c += ` ${o.link}`;
         return c;
     },
 
