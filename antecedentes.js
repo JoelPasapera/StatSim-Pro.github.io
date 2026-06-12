@@ -242,8 +242,11 @@ const Antecedentes = {
                   <select id="antIdioma" class="input"><option value="">Indistinto</option>
                   <option value="es" selected>Español</option><option value="en">Inglés</option></select></div>
               </div>
-              <button id="antBuscar" class="btn btn-primary">🔎 Buscar en 3 bases</button>
-              <button id="antScholar" class="btn btn-outline">↗ Ver en Google Académico</button>
+              <label style="display:inline-flex;align-items:center;gap:0.4rem;margin:0 0 0.6rem;">
+                <input type="checkbox" id="antUsarScholar"> Intentar Google Académico directo (experimental, vía proxy)
+              </label><br>
+              <button id="antBuscar" class="btn btn-primary">🔎 Buscar</button>
+              <button id="antScholar" class="btn btn-outline">↗ Abrir en Google Académico</button>
               <div id="antEstado" class="help-text" style="margin-top:0.5rem;"></div>
               <div id="antResultados"></div>
               <div id="antSeleccion"></div>
@@ -281,6 +284,18 @@ const Antecedentes = {
         estado.textContent = 'Consultando Semantic Scholar + OpenAlex + Crossref…';
         try {
             const f = { desde: document.getElementById('antDesde').value, idioma: document.getElementById('antIdioma').value };
+            if (document.getElementById('antUsarScholar') && document.getElementById('antUsarScholar').checked && typeof ScholarDirecto !== 'undefined') {
+                estado.textContent = 'Intentando Google Académico vía proxy (puede tardar)…';
+                try {
+                    const { obras, proxy } = await ScholarDirecto.buscar(q, f.desde);
+                    this._obras = obras.map(o => ({ ...o, autores: o.autoresRaw ? o.autoresRaw.split(/,\s*/) : [] }));
+                    estado.textContent = `${obras.length} resultados de Google Académico (proxy ${proxy}). Marca los pertinentes:`;
+                    this._renderResultados(this._obras);
+                    return;
+                } catch (e) {
+                    estado.textContent = `Google Académico no respondió (${e.message}). Usando las 3 bases académicas como alternativa…`;
+                }
+            }
             const { obras, fuentesOK, caidas } = await this.buscarMulti(q, f);
             this._obras = obras;
             estado.textContent = obras.length
