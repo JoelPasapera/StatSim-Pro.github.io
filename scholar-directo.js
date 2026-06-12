@@ -11,14 +11,6 @@
 
 const ScholarDirecto = {
 
-    // Proxies CORS públicos conocidos (se prueban en orden hasta que uno sirva).
-    PROXIES: [
-        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-        url => `https://thingproxy.freeboard.io/fetch/${url}`,
-        url => `https://api.codetabs.com/v1/proxy/?quest=${url}`
-    ],
-
     urlScholar(query, desde) {
         const p = new URLSearchParams({ q: query, hl: 'es' });
         if (desde) p.set('as_ylo', String(desde));
@@ -61,27 +53,42 @@ const ScholarDirecto = {
 
     async buscar(query, desde) {
         const objetivo = this.urlScholar(query, desde);
+        const arsenal = (typeof ProxiesCORS !== 'undefined')
+            ? ProxiesCORS.ordenados()
+            : [{ id: 'allorigins-raw', build: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, mode: 'raw' }];
         const errores = [];
-        for (let i = 0; i < this.PROXIES.length; i++) {
-            const proxyURL = this.PROXIES[i](objetivo);
+        let captchas = 0;
+        for (const proxy of arsenal) {
+            const t0 = Date.now();
             try {
                 const ctrl = new AbortController();
                 const t = setTimeout(() => ctrl.abort(), 12000);
-                const r = await fetch(proxyURL, { signal: ctrl.signal });
+                const r = await fetch(proxy.build(objetivo), { signal: ctrl.signal });
                 clearTimeout(t);
-                if (!r.ok) { errores.push(`proxy ${i + 1}: HTTP ${r.status}`); continue; }
-                const html = await r.text();
-                if (/id="gs_captcha|unusual traffic|not a robot/i.test(html)) {
-                    errores.push(`proxy ${i + 1}: Scholar pidió CAPTCHA`); continue;
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                const html = (typeof ProxiesCORS !== 'undefined')
+                    ? await ProxiesCORS.extraer(proxy, r) : await r.text();
+                if (/id="gs_captcha|unusual traffic|not a robot|sorry\/index/i.test(html)) {
+                    captchas++;
+                    if (typeof ProxiesCORS !== 'undefined') ProxiesCORS.registrar(proxy.id, false);
+                    errores.push(`${proxy.id}: CAPTCHA`);
+                    continue;
                 }
                 const obras = this.parsearHTML(html);
-                if (obras.length) return { obras, proxy: i + 1 };
-                errores.push(`proxy ${i + 1}: HTML sin resultados parseables`);
+                if (obras.length) {
+                    if (typeof ProxiesCORS !== 'undefined') ProxiesCORS.registrar(proxy.id, true, Date.now() - t0);
+                    return { obras, proxy: proxy.id, captchas };
+                }
+                if (typeof ProxiesCORS !== 'undefined') ProxiesCORS.registrar(proxy.id, false);
+                errores.push(`${proxy.id}: sin resultados`);
             } catch (e) {
-                errores.push(`proxy ${i + 1}: ${e.name === 'AbortError' ? 'timeout' : e.message}`);
+                if (typeof ProxiesCORS !== 'undefined') ProxiesCORS.registrar(proxy.id, false);
+                errores.push(`${proxy.id}: ${e.name === 'AbortError' ? 'timeout' : e.message}`);
             }
         }
-        throw new Error(errores.join(' · '));
+        const err = new Error(errores.slice(0, 6).join(' · '));
+        err.captchas = captchas; err.intentos = arsenal.length;
+        throw err;
     }
 };
 
