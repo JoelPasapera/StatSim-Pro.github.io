@@ -28,7 +28,11 @@ const ScholarDirecto = {
     // Parsea el HTML de resultados de Scholar a objetos estructurados.
     parsearHTML(html) {
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const items = [...doc.querySelectorAll('.gs_r.gs_or, .gs_ri')];
+        // Solo el contenedor de cada resultado (.gs_r.gs_or); usar también su
+        // hijo .gs_ri duplicaba cada obra. .gs_ri queda como fallback si Google
+        // cambiara el markup externo.
+        let items = [...doc.querySelectorAll('.gs_r.gs_or')];
+        if (!items.length) items = [...doc.querySelectorAll('.gs_ri')];
         const obras = [];
         items.forEach(it => {
             const tEl = it.querySelector('.gs_rt');
@@ -46,7 +50,7 @@ const ScholarDirecto = {
                 if (m) citas = +(m[1] || m[2]);
             });
             obras.push({
-                titulo, link, autoresRaw: autores.trim(),
+                titulo, link, autoresRaw: autores.replace(/[…\u2026]/g, '').replace(/\s+/g, ' ').trim(),
                 anio: mAnio ? +mAnio[0] : 's. f.',
                 fuente: (meta.split(' - ')[1] || '').replace(/,?\s*(19|20)\d{2}.*$/, '').trim(),
                 resumen: resumen.trim(), citas, fuentesAPI: ['Scholar']
