@@ -289,7 +289,7 @@ const Antecedentes = {
                   <option value="2" selected>20</option><option value="3">30 (más lento)</option></select></div>
               </div>
               <label style="display:inline-flex;align-items:center;gap:0.4rem;margin:0 0 0.4rem;">
-                <input type="checkbox" id="antUsarScholar"> Intentar Google Académico directo (experimental, vía proxy)
+                <input type="checkbox" id="antUsarScholar" checked> Intentar Google Académico directo (experimental, vía proxy)
               </label><br>
               <label style="display:inline-flex;align-items:center;gap:0.4rem;margin:0 0 0.6rem;">
                 <input type="checkbox" id="antUsarScopus" checked> Buscar en Scopus (Elsevier, vía proxy)
@@ -482,7 +482,10 @@ const Antecedentes = {
 
             <h4 style="margin-top:1.5rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
                 <span>Matriz de revisión bibliográfica</span>
-                <button id="antCsvMatriz" class="btn btn-primary" style="padding:0.3rem 0.8rem;">⬇ Exportar CSV</button>
+                <span style="display:inline-flex; gap:0.4rem; flex-wrap:wrap;">
+                    <button id="antCsvEs" class="btn btn-primary" style="padding:0.3rem 0.8rem;" title="Separador ; — abre en columnas en Excel en español">⬇ CSV (Excel español)</button>
+                    <button id="antCsvEn" class="btn btn-outline" style="padding:0.3rem 0.8rem;" title="Separador , — estándar internacional, Google Sheets y Excel en inglés">⬇ CSV (internacional)</button>
+                </span>
             </h4>
             <div class="table-container"><table class="table" style="font-size:0.85em;">
                 <thead><tr>${COLS.map(c => `<th>${c}</th>`).join('')}</tr></thead>
@@ -495,8 +498,10 @@ const Antecedentes = {
         const btnCopiar = document.getElementById('antCopiarRefs');
         if (btnCopiar) btnCopiar.addEventListener('click', () => this._copiarReferencias(refs));
         // Exportar matriz a CSV (TODAS las filas, no solo la página)
-        const btnCsv = document.getElementById('antCsvMatriz');
-        if (btnCsv) btnCsv.addEventListener('click', () => this._exportarCSV(COLS, filasMatriz));
+        const btnEs = document.getElementById('antCsvEs');
+        if (btnEs) btnEs.addEventListener('click', () => this._exportarCSV(COLS, filasMatriz, ';'));
+        const btnEn = document.getElementById('antCsvEn');
+        if (btnEn) btnEn.addEventListener('click', () => this._exportarCSV(COLS, filasMatriz, ','));
         // Paginación de ambas secciones
         this._cablearPaginas('Ref', () => this._selRef, v => { this._selRef = v; this._renderSeleccion(); }, npRef);
         this._cablearPaginas('Mat', () => this._selMat, v => { this._selMat = v; this._renderSeleccion(); }, npMat);
@@ -567,17 +572,23 @@ const Antecedentes = {
     },
 
     // Exporta la matriz COMPLETA a CSV (UTF-8 con BOM para Excel).
-    _exportarCSV(cols, filas) {
+    // sep=';' → Excel en español (abre en columnas con doble clic).
+    // sep=',' → estándar internacional (Google Sheets, Excel en inglés).
+    _exportarCSV(cols, filas, SEP = ';') {
         const esc = v => {
             const s = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
-            return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+            // Se entrecomilla si el campo contiene el separador, comillas o saltos.
+            return new RegExp('["\\n' + (SEP === ';' ? ';' : ',') + ']').test(s) ? `"${s.replace(/"/g, '""')}"` : s;
         };
-        const lineas = [cols.map(esc).join(',')];
-        filas.forEach(f => lineas.push(f.planas.map(esc).join(',')));
+        // Solo el formato español lleva la pista "sep=;" (Excel-ES la respeta);
+        // el internacional se mantiene como CSV puro, que Sheets/Excel-EN ya leen.
+        const lineas = SEP === ';' ? ['sep=;'] : [];
+        lineas.push(cols.map(esc).join(SEP));
+        filas.forEach(f => lineas.push(f.planas.map(esc).join(SEP)));
         const blob = new Blob(['\ufeff' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'matriz_revision_bibliografica.csv';
+        a.download = SEP === ';' ? 'matriz_revision_es.csv' : 'matriz_revision_intl.csv';
         a.click();
         URL.revokeObjectURL(a.href);
         const estado = document.getElementById('antEstado');
